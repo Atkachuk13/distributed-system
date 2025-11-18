@@ -17,6 +17,7 @@ slave program (with command line argument A or B)
 
 package network;
 
+import java.io.*;
 import java.net.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -30,11 +31,13 @@ public class Slave
     private final int masterPort;
     private Socket commSockMaster;
     private final BlockingQueue<Job> sharedObjectJobQueue = new LinkedBlockingQueue<>();
+    private PrintWriter outToMaster;
+    private BufferedReader inFromMaster;
 
     // Constructor
     public Slave(String slaveType, String masterHost, int masterPort)
     {
-        this.slaveType = slaveType;
+        this.slaveType = slaveType.toUpperCase();  //making sure it's uppercase A or B
         this.masterHost = masterHost;
         this.masterPort = masterPort;
     }
@@ -53,6 +56,13 @@ public class Slave
         String masterHost = args[1];
         int masterPort = Integer.parseInt(args[2]);
 
+        // Validate slave type
+        if (!slaveType.equalsIgnoreCase("A") && !slaveType.equalsIgnoreCase("B"))
+        {
+            System.out.println("Error: Slave type must be A or B");
+            return;
+        }
+
         // Create a Slave instance and start it
         new Slave(slaveType, masterHost, masterPort).start();
     }
@@ -62,13 +72,48 @@ public class Slave
         try
         {
             // 1. Connect to the master using a socket
-            // 2. Print confirmation of successful connection
-            // 3. Start a thread to listen for job assignments from the master
-            // 4. Continuously take jobs from the queue and process them in separate threads
+            System.out.println("Slave - " + slaveType + ": Attempting to connect to master at " +
+                    masterHost + ":" + masterPort);
+            commSockMaster = new Socket(masterHost, masterPort);
 
+            // 2. Setup input / output streams
+            outToMaster = new PrintWriter(commSockMaster.getOutputStream(), true);
+            inFromMaster = new BufferedReader(new InputStreamReader(commSockMaster.getInputStream()));
+
+            // 3. Print confirmation of successful connection
+            System.out.println("Slave - " + slaveType + ": Successfully connected to master!");
+
+            // 4. Announce slave type to master
+            outToMaster.println("SLAVE;" + slaveType);
+            System.out.println("Slave - " + slaveType + ": Announced type to master");
+
+            // 5. Start a thread to listen for job assignments from the master
+            Thread listenerThread = new Thread(this::listenForJobs, "Listener-Thead-Slave-" + slaveType);
+            listenerThread.start();
+            System.out.println("Slave -" + slaveType + ": Listener thread started");
+
+            // 6. Continuously take jobs from the queue and process them in separate threads
+            while (true)
+            {
+                // this blocks until a job is available in the queue
+                Job job = sharedObjectJobQueue.take();
+
+                // Process each job in separate thread to allow concurrent job processing
+                Thread jobThread = new Thread(() -> processJob(job),
+                        "Job-Processor-Thread-" + job.jobId);
+                jobThread.start();
+            }
+        } catch (IOException e)
+        {
+            System.err.println("Slave-" + slaveType + ": Connection error - " + e.getMessage());
+            e.printStackTrace();
+        } catch (InterruptedException e)
+        {
+            System.err.println("Slave-" + slaveType + ": Interrupted while waiting for job");
+            e.printStackTrace();
         } catch (Exception e)
         {
-            // Handle errors in connection or runtime
+            System.err.println("Slave-" + slaveType + ": Unexpected error");
             e.printStackTrace();
         }
     }
@@ -78,15 +123,50 @@ public class Slave
     {
         try
         {
-            // 1. Create an input stream to read messages from the master
-            // 2. Continuously read incoming lines
-            // 3. For lines that start with "JOB", parse job type and job ID
-            // 4. Create a new Job object and add it to the shared job queue
-            // 5. Print a message confirming the job was received
+            System.out.println("Slave -" + slaveType + ": Ready to receive jobs from master");
 
+            String line;
+
+            // 1. Continuously read incoming lines
+            while ((line = inFromMaster.readLine()) != null)
+            {
+                System.out.println("Slave-" + slaveType + ": Received message from master: " + line);
+
+                // 2. For lines that start with "JOB", parse job type and job ID
+                if (line.startsWith("JOB;"))
+                {
+                    // Expected format: "JOB;<type>;<jobId>"
+                    String[] parts = line.split(";");
+
+                    if (parts.length >= 3)
+                    {
+                        String jobType = parts[1];
+                        int jobId = Integer.parseInt(parts[2]);
+
+                        // 3. Create a new Job object and add it to the shared job queue
+                        Job newJob = new Job(jobType, jobId);
+                        sharedObjectJobQueue.add(newJob);
+
+                        // 4. Print a message confirming the job was received
+                        System.out.println("Slave-" + slaveType + ": Job " + jobId +
+                                " (Type " + jobType + ") received and added to queue");
+                    }
+                    else
+                    {
+                        System.err.println("Slave-" + slaveType + ": Malformed job message: " + line);
+                    }
+                }
+            }
+
+            System.out.println("Slave-" + slaveType + ": Connection to master closed");
+
+        } catch (IOException e)
+        {
+            System.err.println("Slave-" + slaveType + ": Error reading from master - " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e)
         {
-            // Handle errors while receiving or parsing job messages
+            System.err.println("Slave-" + slaveType + ": Unexpected error in listener thread");
             e.printStackTrace();
         }
     }
@@ -96,15 +176,39 @@ public class Slave
     {
         try
         {
-            // 1. Check if the job type matches the slave type
-            //     - If yes: print a message and sleep for 2 seconds
-            //     - If no: print a message and sleep for 10 seconds
-            // 2. After sleeping, send a completion message ("COMPLETE <jobId>") back to the master
-            // 3. Print a confirmation that the completion message was sent
+            System.out.println("Slave -" + slaveType + ": Starting to process Job " + job.jobId +
+                    " (Type " + job.type + ")");
 
+            // 1. Check if the job type matches the slave type
+            boolean isOptimal = job.type.equalsIgnoreCase(slaveType);
+
+            if (isOptimal)
+            {
+                // Optimal job: sleep for 2 seconds
+                System.out.println("Slave -" + slaveType + ": Sleeping for 2 seconds for optimal job type... be back soon");
+                Thread.sleep(2000);
+            } else
+            {
+                // non-optimal job: sleep for 10 seconds
+                System.out.println("Slave -" + slaveType + ": Sleeping for 10 seconds for non-optimal job type..., be back soon");
+                Thread.sleep(1000);
+            }
+
+            // 2. After sleeping, send a completion message back to the master
+            String completionMessage = "COMPLETE;" + job.jobId;
+            outToMaster.println(completionMessage);
+
+            // 3. Print a confirmation that the completion message was sent
+            System.out.println("Slave-" + slaveType + ": Job " + job.jobId + " completed. " +
+                    "Sent completion notification to master: " + completionMessage);
+
+        } catch (InterruptedException e)
+        {
+            System.err.println("Slave-" + slaveType + ": Job " + job.jobId + " was interrupted");
+            e.printStackTrace();
         } catch (Exception e)
         {
-            // Handle any errors that occur during job processing
+            System.err.println("Slave-" + slaveType + ": Error processing job " + job.jobId);
             e.printStackTrace();
         }
     }
