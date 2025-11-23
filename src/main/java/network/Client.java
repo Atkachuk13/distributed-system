@@ -16,7 +16,7 @@ public class Client {
     private String clientId;
 
     // Shared memory for outgoing messages (thread-safe queue)
-    private final BlockingQueue<String> outgoingMessages = new LinkedBlockingQueue<>();
+    private final BlockingQueue<String> sharedObjOutgoingMessages = new LinkedBlockingQueue<>();
 
     public static void main(String[] args) {
         new Client().start();
@@ -27,6 +27,8 @@ public class Client {
             System.out.println("Client starting...");
             masterCommSock = new Socket(host, port);
             System.out.println("Connected to master at " + host + ":" + port);
+            System.out.println("This is the interface of the distrib sys, you will enter the jobs and get the confirmation messages");
+            System.out.println();
 
             // Start threads for:
             //  1) user input
@@ -74,7 +76,7 @@ public class Client {
                 String msg = "SUBMIT;" + clientId + ";" + type + ";" + id;
 
                 // Put message into shared queue for the sender thread
-                outgoingMessages.add(msg);
+                sharedObjOutgoingMessages.add(msg);
 
                 System.out.println("Client [" + clientId + "]: queued job " + id + " (type " + type + ")");
             }
@@ -94,7 +96,7 @@ public class Client {
 
                 while (true) {
                     // Take next message from queue (blocks until available)
-                    String msg = outgoingMessages.take();
+                    String msg = sharedObjOutgoingMessages.take();
 
                     // Send to master
                     out.println(msg);

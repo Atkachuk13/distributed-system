@@ -30,7 +30,7 @@ public class Slave
     private final String masterHost;
     private final int masterPort;
     private Socket commSockMaster;
-    private final BlockingQueue<Job> sharedObjectJobQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Job> sharedObjJobQueue = new LinkedBlockingQueue<>();
     private PrintWriter outToMaster;
     private BufferedReader inFromMaster;
 
@@ -96,7 +96,7 @@ public class Slave
             while (true)
             {
                 // this blocks until a job is available in the queue
-                Job job = sharedObjectJobQueue.take();
+                Job job = sharedObjJobQueue.take();
 
                 // Process each job in separate thread to allow concurrent job processing
                 Thread jobThread = new Thread(() -> processJob(job),
@@ -145,7 +145,7 @@ public class Slave
 
                         // 3. Create a new Job object and add it to the shared job queue
                         Job newJob = new Job(jobType, jobId);
-                        sharedObjectJobQueue.add(newJob);
+                        sharedObjJobQueue.add(newJob);
 
                         // 4. Print a message confirming the job was received
                         System.out.println("Slave-" + slaveType + ": Job " + jobId +
@@ -191,7 +191,7 @@ public class Slave
             {
                 // non-optimal job: sleep for 10 seconds
                 System.out.println("Slave -" + slaveType + ": Sleeping for 10 seconds for non-optimal job type..., be back soon");
-                Thread.sleep(1000);
+                Thread.sleep(10000);
             }
 
             // 2. After sleeping, send a completion message back to the master
