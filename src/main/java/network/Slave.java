@@ -1,20 +1,3 @@
-/*
-slave program (with command line argument A or B)
-    Connect to master on given host/port with commSock
-    While running:
-        Wait for job assignment from master
-        For each received job:
-            If job type matches slave type:
-                Print "Sleeping for 2 seconds for optimal job type, be back soon."
-                Sleep(2s)
-            Else:
-                Print "Sleeping for 10 seconds for non-optimal job type, be back soon."
-                Sleep(10s)
-            After sleeping:
-                Send completion message to master with job ID
-                Print confirmation of completion sent
- */
-
 package network;
 
 import java.io.*;
@@ -24,13 +7,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class Slave
 {
-
     // Fields to store slave type (A or B), master's host/port, socket, and job queue
     private final String slaveType;
     private final String masterHost;
     private final int masterPort;
-    private Socket commSockMaster;
-    private final BlockingQueue<Job> sharedObjJobQueue = new LinkedBlockingQueue<>();
+    private Socket socketToMaster;
+    private final BlockingQueue<Job> jobQueue = new LinkedBlockingQueue<>();
     private PrintWriter outToMaster;
     private BufferedReader inFromMaster;
 
@@ -72,31 +54,31 @@ public class Slave
         try
         {
             // 1. Connect to the master using a socket
-            System.out.println("Slave - " + slaveType + ": Attempting to connect to master at " +
+            System.out.println("Slave-" + slaveType + ": Attempting to connect to master at " +
                     masterHost + ":" + masterPort);
-            commSockMaster = new Socket(masterHost, masterPort);
+            socketToMaster = new Socket(masterHost, masterPort);
 
             // 2. Setup input / output streams
-            outToMaster = new PrintWriter(commSockMaster.getOutputStream(), true);
-            inFromMaster = new BufferedReader(new InputStreamReader(commSockMaster.getInputStream()));
+            outToMaster = new PrintWriter(socketToMaster.getOutputStream(), true);
+            inFromMaster = new BufferedReader(new InputStreamReader(socketToMaster.getInputStream()));
 
             // 3. Print confirmation of successful connection
-            System.out.println("Slave - " + slaveType + ": Successfully connected to master!");
+            System.out.println("Slave-" + slaveType + ": Successfully connected to master");
 
             // 4. Announce slave type to master
             outToMaster.println("SLAVE;" + slaveType);
-            System.out.println("Slave - " + slaveType + ": Announced type to master");
+            System.out.println("Slave-" + slaveType + ": Announced type to master");
 
             // 5. Start a thread to listen for job assignments from the master
-            Thread listenerThread = new Thread(this::listenForJobs, "Listener-Thead-Slave-" + slaveType);
+            Thread listenerThread = new Thread(this::listenForJobs, "Listener-Thread-Slave-" + slaveType);
             listenerThread.start();
-            System.out.println("Slave -" + slaveType + ": Listener thread started");
+            System.out.println("Slave-" + slaveType + ": Listener thread started");
 
             // 6. Continuously take jobs from the queue and process them in separate threads
             while (true)
             {
                 // this blocks until a job is available in the queue
-                Job job = sharedObjJobQueue.take();
+                Job job = jobQueue.take();
 
                 // Process each job in separate thread to allow concurrent job processing
                 Thread jobThread = new Thread(() -> processJob(job),
@@ -123,7 +105,7 @@ public class Slave
     {
         try
         {
-            System.out.println("Slave -" + slaveType + ": Ready to receive jobs from master");
+            System.out.println("Slave-" + slaveType + ": Ready to receive jobs from master");
 
             String line;
 
@@ -145,11 +127,11 @@ public class Slave
 
                         // 3. Create a new Job object and add it to the shared job queue
                         Job newJob = new Job(jobType, jobId);
-                        sharedObjJobQueue.add(newJob);
+                        jobQueue.add(newJob);
 
                         // 4. Print a message confirming the job was received
                         System.out.println("Slave-" + slaveType + ": Job " + jobId +
-                                " (Type " + jobType + ") received and added to queue");
+                                " (Type " + jobType + ") received and queued");
                     }
                     else
                     {
@@ -176,7 +158,7 @@ public class Slave
     {
         try
         {
-            System.out.println("Slave -" + slaveType + ": Starting to process Job " + job.jobId +
+            System.out.println("Slave-" + slaveType + ": Starting to process Job " + job.jobId +
                     " (Type " + job.type + ")");
 
             // 1. Check if the job type matches the slave type
@@ -185,12 +167,12 @@ public class Slave
             if (isOptimal)
             {
                 // Optimal job: sleep for 2 seconds
-                System.out.println("Slave -" + slaveType + ": Sleeping for 2 seconds for optimal job type... be back soon");
+                System.out.println("Slave-" + slaveType + ": Processing optimal job " + job.jobId);
                 Thread.sleep(2000);
             } else
             {
                 // non-optimal job: sleep for 10 seconds
-                System.out.println("Slave -" + slaveType + ": Sleeping for 10 seconds for non-optimal job type..., be back soon");
+                System.out.println("Slave-" + slaveType + ": Processing non-optimal job " + job.jobId);
                 Thread.sleep(10000);
             }
 
@@ -199,8 +181,7 @@ public class Slave
             outToMaster.println(completionMessage);
 
             // 3. Print a confirmation that the completion message was sent
-            System.out.println("Slave-" + slaveType + ": Job " + job.jobId + " completed. " +
-                    "Sent completion notification to master: " + completionMessage);
+            System.out.println("Slave-" + slaveType + ": Job " + job.jobId + " completed and notified master");
 
         } catch (InterruptedException e)
         {
