@@ -9,7 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class Client
 {
     private final String host = "localhost";
-    private final int port = 5000;
+    private final int port = 6000;
     private Socket socketToMaster;
 
     // Unique ID for this client instance
