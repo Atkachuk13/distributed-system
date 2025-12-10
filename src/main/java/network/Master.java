@@ -82,9 +82,9 @@ public class Master
         {
             // Create ServerSocket on slave port to listen for slave connections
             // Loop continuously to accept multiple slave connections
-            try (ServerSocket serverSocket = new ServerSocket(5000))
+            try (ServerSocket serverSocket = new ServerSocket(slavePort))
             {
-                System.out.println("Master: Listening for slave connections on port 5000");
+                System.out.println("Master: Listening for slave connections on port 6000");
 
                 while (true)
                 {
@@ -551,7 +551,7 @@ public class Master
     public static void main(String[] args)
     {
         // Create master with default ports
-        Master master = new Master(5000, 5000);
+        Master master = new Master(6000, 6000);
 
         // Start background threads
         master.startJobAssignmentThread();
