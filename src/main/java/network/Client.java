@@ -8,8 +8,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class Client
 {
-    private final String host;
-    private final int port;
+    private final String host = "localhost";
+    private final int port = 6000;
     private Socket socketToMaster;
 
     // Unique ID for this client instance
@@ -18,45 +18,9 @@ public class Client
     // Shared memory for outgoing messages (thread-safe queue)
     private final BlockingQueue<String> outgoingQueue = new LinkedBlockingQueue<>();
 
-    // Constructor with configurable host and port
-    public Client(String host, int port)
-    {
-        this.host = host;
-        this.port = port;
-    }
-
-    // Default constructor for backward compatibility
-    public Client()
-    {
-        this("localhost", 6000); // Default to client port
-    }
-
     public static void main(String[] args)
     {
-        // Allow specifying host and port via command line
-        // Usage: java Client [host] [port]
-        String host = "localhost";
-        int port = 6000;
-
-        if (args.length >= 1)
-        {
-            host = args[0];
-        }
-        if (args.length >= 2)
-        {
-            try
-            {
-                port = Integer.parseInt(args[1]);
-            }
-            catch (NumberFormatException e)
-            {
-                System.err.println("Invalid port number: " + args[1]);
-                System.err.println("Usage: java Client [host] [port]");
-                return;
-            }
-        }
-
-        new Client(host, port).start();
+        new Client().start();
     }
 
     public void start()
@@ -64,9 +28,8 @@ public class Client
         try
         {
             System.out.println("Client starting...");
-            System.out.println("Connecting to master at " + host + ":" + port);
             socketToMaster = new Socket(host, port);
-            System.out.println("Successfully connected to master!");
+            System.out.println("Connected to master at " + host + ":" + port);
             System.out.println();
 
             // Start threads for:
@@ -77,8 +40,7 @@ public class Client
             startSenderThread();
             startListenerThread();
 
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             System.err.println("Error starting client:");
             e.printStackTrace();
@@ -88,7 +50,7 @@ public class Client
     /**
      * Thread that interacts with the USER:
      * - asks for client ID (once)
-     * - repeatedly asks for job type and job ID with validation
+     * - repeatedly asks for job type and job ID
      * - builds a SUBMIT message and puts it into the outgoing queue
      */
     private void startUserInputThread()
@@ -100,67 +62,40 @@ public class Client
             // Ask once for a client ID so the master can distinguish clients
             System.out.print("Enter your client ID (e.g., client1, client2): ");
             clientId = scanner.nextLine().trim();
-
             if (clientId.isEmpty())
             {
                 clientId = "client-" + System.currentTimeMillis();
                 System.out.println("No ID entered. Using generated ID: " + clientId);
-            }
-            else
+            } else
             {
                 System.out.println("Client ID set to: " + clientId);
             }
-            System.out.println();
 
-            // Main loop: read jobs from the user with proper validation
+            // Main loop: read jobs from the user
             while (true)
             {
-                try
+                System.out.print("Enter job type (A/B): ");
+                String type = scanner.nextLine().trim().toUpperCase();
+
+                if (!type.equals("A") && !type.equals("B"))
                 {
-                    // Get and validate job type
-                    String type = "";
-                    while (!type.equals("A") && !type.equals("B"))
-                    {
-                        System.out.print("Enter job type (A or B): ");
-                        type = scanner.nextLine().trim().toUpperCase();
-
-                        if (!type.equals("A") && !type.equals("B"))
-                        {
-                            System.out.println("Invalid job type. Please enter A or B.");
-                        }
-                    }
-
-                    // Get and validate job ID
-                    String id = "";
-                    while (id.isEmpty())
-                    {
-                        System.out.print("Enter job ID: ");
-                        id = scanner.nextLine().trim();
-
-                        if (id.isEmpty())
-                        {
-                            System.out.println("Job ID cannot be empty. Please enter a valid job ID.");
-                        }
-                    }
-
-                    // Message format: SUBMIT;clientId;type;jobId
-                    String msg = "SUBMIT;" + clientId + ";" + type + ";" + id;
-
-                    // Put message into shared queue for the sender thread
-                    outgoingQueue.add(msg);
-
-                    System.out.println("Client [" + clientId + "]: Queued job " + id + " (type " + type + ")");
-                    System.out.println(); // Add blank line for readability
-
+                    System.out.println("Invalid job type. Please enter A or B.");
+                    continue;
                 }
-                catch (Exception e)
-                {
-                    System.err.println("Error reading input: " + e.getMessage());
-                }
+
+                System.out.print("Enter job ID: ");
+                String id = scanner.nextLine().trim();
+
+                // Message format: SUBMIT;clientId;type;jobId
+                String msg = "SUBMIT;" + clientId + ";" + type + ";" + id;
+
+                // Put message into shared queue for the sender thread
+                outgoingQueue.add(msg);
+
+                System.out.println("Client [" + clientId + "]: queued job " + id + " (type " + type + ")");
             }
         }, "UserInputThread");
 
-        t.setDaemon(false); // Keep JVM running
         t.start();
     }
 
@@ -183,17 +118,15 @@ public class Client
 
                     // Send to master
                     out.println(msg);
-                    System.out.println("Client [" + clientId + "]: Submitted to master: " + msg);
+                    System.out.println("Client [" + clientId + "] submitted to Master: " + msg);
                 }
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 System.err.println("Sender thread encountered an error:");
                 e.printStackTrace();
             }
         }, "SenderThread");
 
-        t.setDaemon(true); // Don't prevent JVM shutdown
         t.start();
     }
 
@@ -215,9 +148,7 @@ public class Client
 
                 while ((line = in.readLine()) != null)
                 {
-                    // Add a newline before listener output to avoid interrupting input prompts
-                    System.out.println("\n--- Master Response ---");
-                    System.out.println("Client [" + clientId + "]: Received from master: " + line);
+                    System.out.println("Master response to Client [" + clientId + "]: " + line);
 
                     // Example expected format: DONE;clientId;jobId
                     if (line.startsWith("DONE;"))
@@ -231,30 +162,23 @@ public class Client
                             // Only announce completion if this message is for THIS client
                             if (doneClientId.equals(clientId))
                             {
-                                System.out.println("Client [" + clientId + "]: ✓ Job " + jobId +
-                                        " has been COMPLETED!");
-                            }
-                            else
+                                System.out.println("Client [" + clientId + "]: Job " + jobId + " has been completed!");
+                            } else
                             {
-                                // This shouldn't normally happen with separate client connections
-                                System.out.println("Client [" + clientId + "]: (Note: Received completion " +
-                                        "for " + doneClientId + "'s job " + jobId + ")");
+                                // helpful for debugging:
+                                System.out.println("Client [" + clientId + "]: Ignored DONE for "
+                                        + doneClientId + " (job " + jobId + ")");
                             }
                         }
                     }
                 }
 
-                System.err.println("Client [" + clientId + "]: Connection to master closed");
-
-            }
-            catch (Exception e)
-            {
+            } catch (Exception e) {
                 System.err.println("Listener thread encountered an error:");
                 e.printStackTrace();
             }
         }, "ListenerThread");
 
-        t.setDaemon(true); // Don't prevent JVM shutdown
         t.start();
     }
 }
