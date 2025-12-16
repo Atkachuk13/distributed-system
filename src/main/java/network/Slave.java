@@ -7,7 +7,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class Slave
 {
-    // fields to store slave type (A or B), master's host/port, socket, and job queue
     private final String slaveType;
     private final String masterHost;
     private final int masterPort;
@@ -16,17 +15,16 @@ public class Slave
     private PrintWriter outToMaster;
     private BufferedReader inFromMaster;
 
-    // constructor
     public Slave(String slaveType, String masterHost, int masterPort)
     {
-        this.slaveType = slaveType.toUpperCase();  //making sure it's uppercase A or B
+        this.slaveType = slaveType.toUpperCase();
         this.masterHost = masterHost;
         this.masterPort = masterPort;
     }
 
     public static void main(String[] args)
     {
-        // Check and parse command-line arguments
+        // check and parse command-line arguments
         // args should be: <A|B> <masterHost> <masterPort>
         if (args.length != 3)
         {
@@ -53,34 +51,34 @@ public class Slave
     {
         try
         {
-            // 1. Connect to the master using a socket
+            // 1. connect to the master using a socket
             System.out.println("Slave-" + slaveType + ": Attempting to connect to master at " +
                     masterHost + ":" + masterPort);
             socketToMaster = new Socket(masterHost, masterPort);
 
-            // 2. Setup input / output streams
+            // 2. setup input / output streams
             outToMaster = new PrintWriter(socketToMaster.getOutputStream(), true);
             inFromMaster = new BufferedReader(new InputStreamReader(socketToMaster.getInputStream()));
 
-            // 3. Print confirmation of successful connection
+            // 3. print confirmation of successful connection
             System.out.println("Slave-" + slaveType + ": Successfully connected to master");
 
-            // 4. Announce slave type to master
+            // 4. announce slave type to master
             outToMaster.println("SLAVE;" + slaveType);
             System.out.println("Slave-" + slaveType + ": Announced type to master");
 
-            // 5. Start a thread to listen for job assignments from the master
-            Thread listenerThread = new Thread(this::listenForJobs, "Listener-Thread-Slave-" + slaveType);
+            // 5. start a thread to listen for job assignments from the master
+            Thread listenerThread = new Thread(this::listenForJobsFromMaster, "Listener-Thread-Slave-" + slaveType);
             listenerThread.start();
             System.out.println("Slave-" + slaveType + ": Listener thread started");
 
-            // 6. Continuously take jobs from the queue and process them in separate threads
+            // 6. continuously take jobs from the queue and process them in separate threads
             while (true)
             {
                 // this blocks until a job is available in the queue
                 Job job = jobQueue.take();
 
-                // Process each job in separate thread to allow concurrent job processing
+                // process each job in separate thread to allow concurrent job processing
                 Thread jobThread = new Thread(() -> processJob(job),
                         "Job-Processor-Thread-" + job.jobId);
                 jobThread.start();
@@ -100,8 +98,8 @@ public class Slave
         }
     }
 
-    // thread method to listen for job assignments from the master
-    public void listenForJobs()
+    // listen for job assignments from the master
+    public void listenForJobsFromMaster()
     {
         try
         {
@@ -109,15 +107,15 @@ public class Slave
 
             String line;
 
-            // 1. Continuously read incoming lines
+            // 1. continuously read incoming lines
             while ((line = inFromMaster.readLine()) != null)
             {
                 System.out.println("Slave-" + slaveType + ": Received message from master: " + line);
 
-                // 2. For lines that start with "JOB", parse job type and job ID
+                // 2. for lines that start with "JOB", parse job type and job ID
                 if (line.startsWith("JOB;"))
                 {
-                    // Expected format: "JOB;<type>;<jobId>"
+                    // expected format: "JOB;<type>;<jobId>"
                     String[] parts = line.split(";");
 
                     if (parts.length >= 3)
@@ -125,15 +123,14 @@ public class Slave
                         String jobType = parts[1];
                         String jobId = parts[2];
 
-                        // 3. Create a new Job object and add it to the shared job queue
+                        // 3. create a new Job object and add it to the shared job queue
                         Job newJob = new Job(jobType, jobId);
                         jobQueue.add(newJob);
 
-                        // 4. Print a message confirming the job was received
+                        // 4. print a message confirming the job was received
                         System.out.println("Slave-" + slaveType + ": Job " + jobId +
                                 " (Type " + jobType + ") received and queued");
-                    }
-                    else
+                    } else
                     {
                         System.err.println("Slave-" + slaveType + ": Malformed job message: " + line);
                     }
@@ -153,7 +150,7 @@ public class Slave
         }
     }
 
-    // method to process an individual job
+    // process an individual job
     private void processJob(Job job)
     {
         try
@@ -161,12 +158,12 @@ public class Slave
             System.out.println("Slave-" + slaveType + ": Starting to process Job " + job.jobId +
                     " (Type " + job.type + ")");
 
-            // 1. Check if the job type matches the slave type
+            // 1. check if the job type matches the slave type
             boolean isOptimal = job.type.equalsIgnoreCase(slaveType);
 
             if (isOptimal)
             {
-                // Optimal job: sleep for 2 seconds
+                // optimal job: sleep for 2 seconds
                 System.out.println("Slave-" + slaveType + ": Processing optimal job " + job.jobId);
                 Thread.sleep(2000);
             } else
@@ -176,11 +173,11 @@ public class Slave
                 Thread.sleep(10000);
             }
 
-            // 2. After sleeping, send a completion message back to the master
+            // 2. after sleeping, send a completion message back to the master
             String completionMessage = "COMPLETE;" + job.jobId;
             outToMaster.println(completionMessage);
 
-            // 3. Print a confirmation that the completion message was sent
+            // 3. print a confirmation that the completion message was sent
             System.out.println("Slave-" + slaveType + ": Job " + job.jobId + " completed and notified master");
 
         } catch (InterruptedException e)
