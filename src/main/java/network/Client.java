@@ -1,3 +1,16 @@
+/*
+- change the inner classes to call from the other classes (from inside the master)
+- add another client
+- when run a second time, it needs to ask for the clientId and the jobType again not just straight to the jobID
+- add end message in the Client to terminate the run
+
+Bella - change the inner classes to call from the other classes (from inside the master)
+Shoshana - add another client
+Adel - when run a second time, it needs to ask for the clientId and the jobType again not just straight to the jobID
+Shoshana - add end message in the Client to terminate the run
+ */
+
+
 package network;
 
 import java.io.*;
@@ -12,10 +25,10 @@ public class Client
     private final int port = 6000;
     private Socket socketToMaster;
 
-    // Unique ID for this client instance
+    // unique ID for this client instance
     private String clientId;
 
-    // Shared memory for outgoing messages (thread-safe queue)
+    // shared memory for outgoing messages
     private final BlockingQueue<String> outgoingQueue = new LinkedBlockingQueue<>();
 
     public static void main(String[] args)
@@ -55,11 +68,10 @@ public class Client
      */
     private void startUserInputThread()
     {
-        Thread t = new Thread(() ->
+        Thread thread = new Thread(() ->
         {
             Scanner scanner = new Scanner(System.in);
 
-            // Ask once for a client ID so the master can distinguish clients
             System.out.print("Enter your client ID (e.g., client1, client2): ");
             clientId = scanner.nextLine().trim();
             if (clientId.isEmpty())
@@ -71,7 +83,7 @@ public class Client
                 System.out.println("Client ID set to: " + clientId);
             }
 
-            // Main loop: read jobs from the user
+            // main loop: read jobs from the user
             while (true)
             {
                 System.out.print("Enter job type (A/B): ");
@@ -86,17 +98,17 @@ public class Client
                 System.out.print("Enter job ID: ");
                 String id = scanner.nextLine().trim();
 
-                // Message format: SUBMIT;clientId;type;jobId
+                // message format: SUBMIT;clientId;type;jobId
                 String msg = "SUBMIT;" + clientId + ";" + type + ";" + id;
 
-                // Put message into shared queue for the sender thread
+                // put message into shared queue for the sender thread
                 outgoingQueue.add(msg);
 
                 System.out.println("Client [" + clientId + "]: queued job " + id + " (type " + type + ")");
             }
         }, "UserInputThread");
 
-        t.start();
+        thread.start();
     }
 
     /**
@@ -113,10 +125,10 @@ public class Client
 
                 while (true)
                 {
-                    // Take next message from queue (blocks until available)
+                    // take next message from queue (blocks until available)
                     String msg = outgoingQueue.take();
 
-                    // Send to master
+                    // send to master
                     out.println(msg);
                     System.out.println("Client [" + clientId + "] submitted to Master: " + msg);
                 }
@@ -150,7 +162,7 @@ public class Client
                 {
                     System.out.println("Master response to Client [" + clientId + "]: " + line);
 
-                    // Example expected format: DONE;clientId;jobId
+                    // example expected format: DONE;clientId;jobId
                     if (line.startsWith("DONE;"))
                     {
                         String[] parts = line.split(";");
@@ -159,13 +171,12 @@ public class Client
                             String doneClientId = parts[1];
                             String jobId = parts[2];
 
-                            // Only announce completion if this message is for THIS client
+                            // only announce completion if this message is for THIS client
                             if (doneClientId.equals(clientId))
                             {
                                 System.out.println("Client [" + clientId + "]: Job " + jobId + " has been completed!");
                             } else
                             {
-                                // helpful for debugging:
                                 System.out.println("Client [" + clientId + "]: Ignored DONE for "
                                         + doneClientId + " (job " + jobId + ")");
                             }
@@ -173,7 +184,8 @@ public class Client
                     }
                 }
 
-            } catch (Exception e) {
+            } catch (Exception e)
+            {
                 System.err.println("Listener thread encountered an error:");
                 e.printStackTrace();
             }

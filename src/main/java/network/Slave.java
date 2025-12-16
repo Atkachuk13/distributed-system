@@ -7,7 +7,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class Slave
 {
-    // Fields to store slave type (A or B), master's host/port, socket, and job queue
+    // fields to store slave type (A or B), master's host/port, socket, and job queue
     private final String slaveType;
     private final String masterHost;
     private final int masterPort;
@@ -16,7 +16,7 @@ public class Slave
     private PrintWriter outToMaster;
     private BufferedReader inFromMaster;
 
-    // Constructor
+    // constructor
     public Slave(String slaveType, String masterHost, int masterPort)
     {
         this.slaveType = slaveType.toUpperCase();  //making sure it's uppercase A or B
@@ -38,14 +38,14 @@ public class Slave
         String masterHost = args[1];
         int masterPort = Integer.parseInt(args[2]);
 
-        // Validate slave type
+        // validate slave type
         if (!slaveType.equalsIgnoreCase("A") && !slaveType.equalsIgnoreCase("B"))
         {
             System.out.println("Error: Slave type must be A or B");
             return;
         }
 
-        // Create a Slave instance and start it
+        // create a Slave instance and start it
         new Slave(slaveType, masterHost, masterPort).start();
     }
 
@@ -100,7 +100,7 @@ public class Slave
         }
     }
 
-    // Thread method to listen for job assignments from the master
+    // thread method to listen for job assignments from the master
     public void listenForJobs()
     {
         try
@@ -153,7 +153,7 @@ public class Slave
         }
     }
 
-    // Method to process an individual job
+    // method to process an individual job
     private void processJob(Job job)
     {
         try
