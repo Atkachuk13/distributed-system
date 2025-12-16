@@ -10,7 +10,6 @@ Adel - when run a second time, it needs to ask for the clientId and the jobType 
 Shoshana - add end message in the Client to terminate the run
  */
 
-
 package network;
 
 import java.io.*;
