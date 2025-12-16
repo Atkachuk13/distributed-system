@@ -74,26 +74,32 @@ public class Slave
             listenerThread.start();
             System.out.println("Slave-" + slaveType + ": Listener thread started");
 
-            // 6. Continuously take jobs from the queue and process them in separate threads
+            // 6. Process jobs sequentially (one at a time) from the queue
+            // This ensures the master's load calculation remains accurate
+            System.out.println("Slave-" + slaveType + ": Job processor thread started");
+
             while (true)
             {
-                // this blocks until a job is available in the queue
+                // This blocks until a job is available in the queue
                 Job job = jobQueue.take();
 
-                // Process each job in separate thread to allow concurrent job processing
-                Thread jobThread = new Thread(() -> processJob(job),
-                        "Job-Processor-Thread-" + job.jobId);
-                jobThread.start();
+                // Process job immediately in this thread (sequential processing)
+                // This is crucial: we process ONE job at a time so the master's
+                // load tracking (currentLoad) remains accurate
+                processJob(job);
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.err.println("Slave-" + slaveType + ": Connection error - " + e.getMessage());
             e.printStackTrace();
-        } catch (InterruptedException e)
+        }
+        catch (InterruptedException e)
         {
             System.err.println("Slave-" + slaveType + ": Interrupted while waiting for job");
             e.printStackTrace();
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             System.err.println("Slave-" + slaveType + ": Unexpected error");
             e.printStackTrace();
@@ -142,11 +148,13 @@ public class Slave
 
             System.out.println("Slave-" + slaveType + ": Connection to master closed");
 
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.err.println("Slave-" + slaveType + ": Error reading from master - " + e.getMessage());
             e.printStackTrace();
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             System.err.println("Slave-" + slaveType + ": Unexpected error in listener thread");
             e.printStackTrace();
@@ -154,6 +162,7 @@ public class Slave
     }
 
     // Method to process an individual job
+    // IMPORTANT: This is now called sequentially, not in separate threads
     private void processJob(Job job)
     {
         try
@@ -167,12 +176,15 @@ public class Slave
             if (isOptimal)
             {
                 // Optimal job: sleep for 2 seconds
-                System.out.println("Slave-" + slaveType + ": Processing optimal job " + job.jobId);
+                System.out.println("Slave-" + slaveType + ": Processing optimal job " + job.jobId +
+                        " (2 seconds)");
                 Thread.sleep(2000);
-            } else
+            }
+            else
             {
-                // non-optimal job: sleep for 10 seconds
-                System.out.println("Slave-" + slaveType + ": Processing non-optimal job " + job.jobId);
+                // Non-optimal job: sleep for 10 seconds
+                System.out.println("Slave-" + slaveType + ": Processing non-optimal job " + job.jobId +
+                        " (10 seconds)");
                 Thread.sleep(10000);
             }
 
@@ -181,13 +193,16 @@ public class Slave
             outToMaster.println(completionMessage);
 
             // 3. Print a confirmation that the completion message was sent
-            System.out.println("Slave-" + slaveType + ": Job " + job.jobId + " completed and notified master");
+            System.out.println("Slave-" + slaveType + ": Job " + job.jobId +
+                    " completed and notified master");
 
-        } catch (InterruptedException e)
+        }
+        catch (InterruptedException e)
         {
             System.err.println("Slave-" + slaveType + ": Job " + job.jobId + " was interrupted");
             e.printStackTrace();
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             System.err.println("Slave-" + slaveType + ": Error processing job " + job.jobId);
             e.printStackTrace();
