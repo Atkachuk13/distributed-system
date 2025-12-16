@@ -23,8 +23,6 @@ public class Client
     private final String host = "localhost";
     private final int port = 6000;
     private Socket socketToMaster;
-
-    // unique ID for this client instance
     private String clientId;
 
     // shared memory for outgoing messages
