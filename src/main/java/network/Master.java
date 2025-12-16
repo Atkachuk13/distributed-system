@@ -50,25 +50,38 @@ public class Master
 
     private void acceptConnections()
     {
-        try
-        {
-            // Create ServerSocket on slave port to listen for slave connections
-            // Loop continuously to accept multiple slave connections
-            try (ServerSocket serverSocket = new ServerSocket(slavePort))
-            {
-                System.out.println("Master: Listening for slave connections on port 6000");
+        threadPool.execute(() -> acceptSlaveConnections());
+        threadPool.execute(() -> acceptClientConnections());
+    }
 
-                while (true)
-                {
-                    Socket newConnection = serverSocket.accept();
-                    System.out.println("Master: New slave connection accepted from " +
-                            newConnection.getInetAddress());
-                    threadPool.execute(() -> handleNewConnection(newConnection));
-                }
+    private void acceptSlaveConnections()
+    {
+        try (ServerSocket ss = new ServerSocket(slavePort))
+        {
+            System.out.println("Master: Listening for slaves on " + slavePort);
+            while (true)
+            {
+                Socket s = ss.accept();
+                threadPool.execute(() -> handleNewConnection(s));
             }
         } catch (IOException e)
         {
-            System.err.println("Master: Error accepting slave connections - " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void acceptClientConnections()
+    {
+        try (ServerSocket ss = new ServerSocket(clientPort))
+        {
+            System.out.println("Master: Listening for clients on " + clientPort);
+            while (true)
+            {
+                Socket s = ss.accept();
+                threadPool.execute(() -> handleNewConnection(s));
+            }
+        } catch (IOException e)
+        {
             e.printStackTrace();
         }
     }
@@ -139,20 +152,26 @@ public class Master
 
                         System.out.println("Master: Job " + jobIdStr + " completed by slave " + slaveId);
 
-                        // Update slave load
+                        // Update slave load using exact job time
                         synchronized (slaveRegistry)
                         {
-                            // Determine job processing time based on match
-                            // Need to track this when assigning jobs
-                            slaveInfo.currentLoad -= 2; // Placeholder - need proper tracking
-                            if (slaveInfo.currentLoad < 0) slaveInfo.currentLoad = 0;
+                            Integer time = slaveInfo.activeJobs.remove(jobIdStr);
+                            if (time != null)
+                            {
+                                slaveInfo.currentLoad -= time;
+                            }
+
+                            if (slaveInfo.currentLoad < 0)
+                            {
+                                slaveInfo.currentLoad = 0;
+                            }
                         }
 
                         System.out.println("Master: Slave " + slaveId + " current load: " +
                                 slaveInfo.currentLoad);
 
                         // Add to completion queue
-                        JobCompletion completion = new JobCompletion(Integer.parseInt(jobIdStr), slaveId);
+                        JobCompletion completion = new JobCompletion(jobIdStr, slaveId);
                         completedJobsQueue.put(completion);
                     }
                 }
@@ -399,10 +418,11 @@ public class Master
         boolean isOptimal = String.valueOf(slave.slaveType).equals(job.jobType);
         int processingTime = isOptimal ? 2 : 10;
 
-        // Update slave load
+        // Update slave load and track job time
         synchronized (slaveRegistry)
         {
             slave.currentLoad += processingTime;
+            slave.activeJobs.put(job.jobId, processingTime);
         }
 
         // Send job to slave: JOB;type;jobId
@@ -433,12 +453,12 @@ public class Master
                     String clientId;
                     synchronized (jobToClientMapping)
                     {
-                        clientId = jobToClientMapping.remove(String.valueOf(completion.jobId));
+                        clientId = jobToClientMapping.remove(completion.jobId);
                     }
 
                     if (clientId != null)
                     {
-                        notifyClientOfCompletion(clientId, String.valueOf(completion.jobId));
+                        notifyClientOfCompletion(clientId, completion.jobId);
                     }
                     else
                     {
@@ -523,7 +543,7 @@ public class Master
     public static void main(String[] args)
     {
         // Create master with default ports
-        Master master = new Master(6000, 6000);
+        Master master = new Master(6000, 6001);
 
         // Start background threads
         master.startJobAssignmentThread();

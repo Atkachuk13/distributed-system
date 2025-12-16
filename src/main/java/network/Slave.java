@@ -123,7 +123,7 @@ public class Slave
                     if (parts.length >= 3)
                     {
                         String jobType = parts[1];
-                        int jobId = Integer.parseInt(parts[2]);
+                        String jobId = parts[2];
 
                         // 3. Create a new Job object and add it to the shared job queue
                         Job newJob = new Job(jobType, jobId);
@@ -191,19 +191,6 @@ public class Slave
         {
             System.err.println("Slave-" + slaveType + ": Error processing job " + job.jobId);
             e.printStackTrace();
-        }
-    }
-
-    // Inner class representing a job
-    private static class Job
-    {
-        String type;
-        int jobId;
-
-        // Constructor to initialize job type and ID
-        Job(String type, int jobId) {
-            this.type = type;
-            this.jobId = jobId;
         }
     }
 }

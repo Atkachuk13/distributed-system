@@ -77,6 +77,12 @@ public class Client
                 System.out.print("Enter job type (A/B): ");
                 String type = scanner.nextLine().trim().toUpperCase();
 
+                if (!type.equals("A") && !type.equals("B"))
+                {
+                    System.out.println("Invalid job type. Please enter A or B.");
+                    continue;
+                }
+
                 System.out.print("Enter job ID: ");
                 String id = scanner.nextLine().trim();
 
