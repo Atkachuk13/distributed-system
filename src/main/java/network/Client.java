@@ -10,7 +10,6 @@ Adel - when run a second time, it needs to ask for the clientId and the jobType 
 Shoshana - add end message in the Client to terminate the run
  */
 
-
 package network;
 
 import java.io.*;
@@ -24,8 +23,6 @@ public class Client
     private final String host = "localhost";
     private final int port = 6000;
     private Socket socketToMaster;
-
-    // unique ID for this client instance
     private String clientId;
 
     // shared memory for outgoing messages

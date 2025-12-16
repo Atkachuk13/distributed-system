@@ -34,7 +34,7 @@ public class Master
         this.clientPort = clientPort;
         this.slavePort = slavePort;
 
-        // initialize thread pool - creates threads as needed
+        // initialize thread pool
         this.threadPool = Executors.newCachedThreadPool();
 
         // initialize shared objects
@@ -73,7 +73,7 @@ public class Master
         }
     }
 
-   private void registerSlave(Socket socketToSlave, String slaveType, BufferedReader in )
+    private void registerSlave(Socket socketToSlave, String slaveType, BufferedReader in)
     {
         try
         {
@@ -322,14 +322,16 @@ public class Master
                     removed.socketToClient.close();
                 } catch (IOException e)
                 {
-                    e.printStackTrace();                }
+                    e.printStackTrace();
+                }
             }
         }
     }
 
     private void startJobAssignmentThread()
     {
-        threadPool.execute(() -> {
+        threadPool.execute(() ->
+        {
             try
             {
                 System.out.println("Master: Job assignment thread started");
@@ -348,8 +350,7 @@ public class Master
                     if (selectedSlave != null)
                     {
                         assignJobToSlave(selectedSlave, job);
-                    }
-                    else
+                    } else
                     {
                         System.err.println("Master: No slaves available for job " + job.jobId);
                     }
@@ -371,7 +372,7 @@ public class Master
         {
             for (SlaveInfo slave : slaveRegistry.values())
             {
-                // Calculate completion time for this slave
+                // calculate completion time for this slave
                 boolean isOptimal = String.valueOf(slave.slaveType).equals(jobType);
                 int processingTime = isOptimal ? 2 : 10;
                 int completionTime = slave.currentLoad + processingTime;
@@ -417,7 +418,8 @@ public class Master
 
     private void startCompletionNotificationThread()
     {
-        threadPool.execute(() -> {
+        threadPool.execute(() ->
+        {
             try
             {
                 System.out.println("Master: Completion notification thread started");
@@ -439,8 +441,7 @@ public class Master
                     if (clientId != null)
                     {
                         notifyClientOfCompletion(clientId, String.valueOf(completion.jobId));
-                    }
-                    else
+                    } else
                     {
                         System.err.println("Master: No client found for completed job " + completion.jobId);
                     }
@@ -469,8 +470,7 @@ public class Master
 
             System.out.println("Master: Notified client " + clientId +
                     " that job " + jobId + " is complete");
-        }
-        else
+        } else
         {
             System.err.println("Master: Client " + clientId + " not found for job completion notification");
         }
@@ -522,14 +522,14 @@ public class Master
 
     public static void main(String[] args)
     {
-        // create master with default ports
+        // master with default ports
         Master master = new Master(6000, 6000);
 
         // start background threads
         master.startJobAssignmentThread();
         master.startCompletionNotificationThread();
 
-        // start accepting connections
+        // accepting connections
         master.acceptConnections();
     }
 }
