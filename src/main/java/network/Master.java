@@ -29,34 +29,6 @@ public class Master
     // jobId -> clientId
     private final HashMap<String, String> jobToClientMapping;
 
-    // slave class for now, will be deleted later
-    // DELETE THESE INNER CLASSES?????
-    // CONNECT THEM !!!!!!
-    private static class SlaveInfo
-    {
-        String slaveId;
-        char slaveType;
-        Socket socketToSlave;
-        int currentLoad;
-        PrintWriter out;
-        BufferedReader in;
-    }
-
-    private static class ClientInfo
-    {
-        String clientId;
-        Socket socketToClient;
-        PrintWriter out;
-        BufferedReader in;
-    }
-
-    private static class JobSubmission
-    {
-        String clientId;
-        String jobType;
-        String jobId;
-    }
-
     public Master(int clientPort, int slavePort)
     {
         this.clientPort = clientPort;
