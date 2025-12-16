@@ -14,13 +14,13 @@ public class Master
     int clientPort;
     int slavePort;
 
-    // Thread pool for managing concurrent connections
+    // thread pool for managing concurrent connections
     private final ExecutorService threadPool;
 
-    // Shared object for slave registry (thread-safe access)
+    // shared object for slave registry (thread-safe access)
     private final HashMap<String, SlaveInfo> slaveRegistry;
 
-    // Shared object for completed jobs queue
+    // shared object for completed jobs queue
     private final BlockingQueue<JobCompletion> completedJobsQueue;
 
     private final HashMap<String, ClientInfo> clientRegistry;
@@ -62,10 +62,10 @@ public class Master
         this.clientPort = clientPort;
         this.slavePort = slavePort;
 
-        // Initialize thread pool - creates threads as needed
+        // initialize thread pool - creates threads as needed
         this.threadPool = Executors.newCachedThreadPool();
 
-        // Initialize shared objects
+        // initialize shared objects
         this.slaveRegistry = new HashMap<>();
         this.completedJobsQueue = new LinkedBlockingQueue<>();
         this.clientRegistry = new HashMap<>();
@@ -80,8 +80,8 @@ public class Master
     {
         try
         {
-            // Create ServerSocket on slave port to listen for slave connections
-            // Loop continuously to accept multiple slave connections
+            // create ServerSocket on slave port to listen for slave connections
+            // loop continuously to accept multiple slave connections
             try (ServerSocket serverSocket = new ServerSocket(slavePort))
             {
                 System.out.println("Master: Listening for slave connections on port 6000");
@@ -111,7 +111,7 @@ public class Master
 
             System.out.println("Master: Registering slave - ID: " + slaveId + ", Type: " + slaveType);
 
-            // Validate slave type
+            // validate slave type
             if (!slaveType.equals("A") && !slaveType.equals("B"))
             {
                 System.err.println("Master: Invalid slave type: " + slaveType);
@@ -119,7 +119,7 @@ public class Master
                 return;
             }
 
-            // Create SlaveInfo object
+            // create SlaveInfo object
             SlaveInfo slaveInfo = new SlaveInfo();
             slaveInfo.slaveId = slaveId;
             slaveInfo.slaveType = slaveType.charAt(0);
@@ -128,7 +128,7 @@ public class Master
             slaveInfo.out = out;
             slaveInfo.in = in;
 
-            // Add to registry
+            // add to registry
             synchronized (slaveRegistry)
             {
                 slaveRegistry.put(slaveId, slaveInfo);
@@ -136,7 +136,7 @@ public class Master
 
             System.out.println("Master: Slave " + slaveId + " successfully registered");
 
-            // Start reader thread
+            // start reader thread
             threadPool.execute(() -> readFromSlave(slaveId, slaveInfo));
 
         } catch (IOException e)
@@ -167,11 +167,11 @@ public class Master
 
                         System.out.println("Master: Job " + jobIdStr + " completed by slave " + slaveId);
 
-                        // Update slave load
+                        // update slave load
                         synchronized (slaveRegistry)
                         {
-                            // Determine job processing time based on match
-                            // Need to track this when assigning jobs
+                            // determine job processing time based on match
+                            // need to track this when assigning jobs
                             slaveInfo.currentLoad -= 2; // Placeholder - need proper tracking
                             if (slaveInfo.currentLoad < 0) slaveInfo.currentLoad = 0;
                         }
@@ -179,7 +179,7 @@ public class Master
                         System.out.println("Master: Slave " + slaveId + " current load: " +
                                 slaveInfo.currentLoad);
 
-                        // Add to completion queue
+                        // add to completion queue
                         JobCompletion completion = new JobCompletion(Integer.parseInt(jobIdStr), slaveId);
                         completedJobsQueue.put(completion);
                     }
@@ -199,7 +199,7 @@ public class Master
 
     private void handleSlaveDisconnection(String slaveId)
     {
-        // Remove slave from registry
+        // remove slave from registry
         synchronized (slaveRegistry)
         {
             SlaveInfo removed = slaveRegistry.remove(slaveId);
@@ -207,7 +207,7 @@ public class Master
             {
                 System.out.println("Master: Removed slave " + slaveId + " from registry");
 
-                // Close socket
+                // close socket
                 try
                 {
                     removed.socketToSlave.close();
@@ -219,7 +219,7 @@ public class Master
         }
 
         // TODO: Handle any jobs that were assigned to this slave
-        // For now, just log the issue
+        // for now, just log the issue
         System.err.println("Master: WARNING - Jobs assigned to slave " + slaveId +
                 " may need to be reassigned");
     }
@@ -230,7 +230,7 @@ public class Master
         {
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            // Extract clientId from first message: SUBMIT;clientId;type;jobId
+            // extract clientId from first message: SUBMIT;clientId;type;jobId
             String[] parts = firstMessage.split(";");
             if (parts.length < 2)
             {
@@ -243,14 +243,14 @@ public class Master
 
             System.out.println("Master: Registering client - ID: " + clientId);
 
-            // Create ClientInfo object
+            // create ClientInfo object
             ClientInfo clientInfo = new ClientInfo();
             clientInfo.clientId = clientId;
             clientInfo.socketToClient = clientSocket;
             clientInfo.out = out;
             clientInfo.in = in;
 
-            // Add to registry
+            // add to registry
             synchronized (clientRegistry)
             {
                 clientRegistry.put(clientId, clientInfo);
@@ -258,10 +258,10 @@ public class Master
 
             System.out.println("Master: Client " + clientId + " successfully registered");
 
-            // Process the first job submission
+            // process the first job submission
             processClientMessage(firstMessage, clientId);
 
-            // Start reader thread to listen for more job submissions
+            // start reader thread to listen for more job submissions
             threadPool.execute(() -> readFromClient(clientId, clientInfo));
 
         } catch (IOException e)
@@ -302,7 +302,7 @@ public class Master
         {
             if (message.startsWith("SUBMIT;"))
             {
-                // Format: SUBMIT;clientId;type;jobId
+                // format: SUBMIT;clientId;type;jobId
                 String[] parts = message.split(";");
                 if (parts.length >= 4)
                 {
@@ -312,13 +312,13 @@ public class Master
                     System.out.println("Master: Received job " + jobId + " (Type " + jobType +
                             ") from client " + clientId);
 
-                    // Track which client submitted this job
+                    // track which client submitted this job
                     synchronized (jobToClientMapping)
                     {
                         jobToClientMapping.put(jobId, clientId);
                     }
 
-                    // Create JobSubmission and add to queue
+                    // create JobSubmission and add to queue
                     JobSubmission submission = new JobSubmission();
                     submission.clientId = clientId;
                     submission.jobType = jobType;
@@ -364,13 +364,13 @@ public class Master
 
                 while (true)
                 {
-                    // Take job from queue (blocks until available)
+                    // take job from queue (blocks until available)
                     JobSubmission job = jobSubmissionQueue.take();
 
                     System.out.println("Master: Processing job " + job.jobId +
                             " (Type " + job.jobType + ")");
 
-                    // Select optimal slave
+                    // select optimal slave
                     SlaveInfo selectedSlave = selectOptimalSlave(job.jobType);
 
                     if (selectedSlave != null)
@@ -427,13 +427,13 @@ public class Master
         boolean isOptimal = String.valueOf(slave.slaveType).equals(job.jobType);
         int processingTime = isOptimal ? 2 : 10;
 
-        // Update slave load
+        // update slave load
         synchronized (slaveRegistry)
         {
             slave.currentLoad += processingTime;
         }
 
-        // Send job to slave: JOB;type;jobId
+        // send job to slave: JOB;type;jobId
         String jobMessage = "JOB;" + job.jobType + ";" + job.jobId;
         slave.out.println(jobMessage);
 
@@ -452,12 +452,12 @@ public class Master
 
                 while (true)
                 {
-                    // Take completion from queue
+                    // take completion from queue
                     JobCompletion completion = completedJobsQueue.take();
 
                     System.out.println("Master: Processing completion for job " + completion.jobId);
 
-                    // Find which client submitted this job
+                    // find which client submitted this job
                     String clientId;
                     synchronized (jobToClientMapping)
                     {
@@ -491,7 +491,7 @@ public class Master
 
         if (client != null)
         {
-            // Send completion message: DONE;clientId;jobId
+            // send completion message: DONE;clientId;jobId
             String completionMessage = "DONE;" + clientId + ";" + jobId;
             client.out.println(completionMessage);
 
@@ -511,7 +511,7 @@ public class Master
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(newConnection.getInputStream()));
 
-            // Read first message to determine the connection type
+            // read first message to determine the connection type
             String firstMessage = in.readLine();
 
             if (firstMessage == null)
@@ -525,7 +525,7 @@ public class Master
 
             if (firstMessage.startsWith("SLAVE;"))
             {
-                // Handle slave connection
+                // handle slave connection
                 String[] parts = firstMessage.split(";");
                 if (parts.length >= 2)
                 {
@@ -534,7 +534,7 @@ public class Master
                 }
             } else if (firstMessage.startsWith("SUBMIT;"))
             {
-                // Handle client connection
+                // handle client connection
                 handleClientConnection(newConnection, firstMessage, in);
             } else
             {
@@ -550,14 +550,14 @@ public class Master
 
     public static void main(String[] args)
     {
-        // Create master with default ports
+        // create master with default ports
         Master master = new Master(6000, 6000);
 
-        // Start background threads
+        // start background threads
         master.startJobAssignmentThread();
         master.startCompletionNotificationThread();
 
-        // Start accepting connections
+        // start accepting connections
         master.acceptConnections();
     }
 }
