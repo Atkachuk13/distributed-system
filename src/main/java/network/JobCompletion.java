@@ -3,11 +3,11 @@ package network;
 // helper class for master
 public class JobCompletion
 {
-    int jobId;
+    String jobId;
     String slaveId;
     long completionTime;
 
-    public JobCompletion(int jobId, String slaveId)
+    public JobCompletion(String jobId, String slaveId)
     {
         this.jobId = jobId;
         this.slaveId = slaveId;
