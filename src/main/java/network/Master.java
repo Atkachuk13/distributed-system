@@ -341,7 +341,8 @@ public class Master
                     removed.socketToClient.close();
                 } catch (IOException e)
                 {
-                    e.printStackTrace();                }
+                    e.printStackTrace();
+                }
             }
         }
     }
