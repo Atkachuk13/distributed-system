@@ -1,3 +1,16 @@
+/*
+- change the inner classes to call from the other classes (from inside the master)
+- add another client
+- when run a second time, it needs to ask for the clientId and the jobType again not just straight to the jobID
+- add end message in the Client to terminate the run
+
+Bella - change the inner classes to call from the other classes (from inside the master)
+Shoshana - add another client
+Adel - when run a second time, it needs to ask for the clientId and the jobType again not just straight to the jobID
+Shoshana - add end message in the Client to terminate the run
+ */
+
+
 package network;
 
 import java.io.*;
@@ -158,7 +171,6 @@ public class Client
                                 System.out.println("Client [" + clientId + "]: Job " + jobId + " has been completed!");
                             } else
                             {
-                                // helpful for debugging:
                                 System.out.println("Client [" + clientId + "]: Ignored DONE for "
                                         + doneClientId + " (job " + jobId + ")");
                             }
