@@ -265,17 +265,22 @@ public class Master
                         System.out.println("Master: Job " + jobIdStr + " completed by slave " + slaveId);
 
                         // Update slave load using exact job time that was tracked
-                        Integer processingTime = slaveInfo.activeJobs.remove(jobIdStr);
+                        Integer processingTime;
+                        synchronized (slaveInfo)
+                        {
+                            processingTime = slaveInfo.activeJobs.remove(jobIdStr);
+                            if (processingTime != null)
+                            {
+                                slaveInfo.currentLoad -= processingTime;
+                                if (slaveInfo.currentLoad < 0)
+                                {
+                                    slaveInfo.currentLoad = 0;
+                                }
+                            }
+                        }
+
                         if (processingTime != null)
                         {
-                            slaveInfo.currentLoad -= processingTime;
-
-                            // Ensure load doesn't go negative (safety check)
-                            if (slaveInfo.currentLoad < 0)
-                            {
-                                slaveInfo.currentLoad = 0;
-                            }
-
                             System.out.println("Master: Slave " + slaveId + " load decreased by " +
                                     processingTime + " seconds, current load: " + slaveInfo.currentLoad);
                         }
@@ -469,10 +474,16 @@ public class Master
 
         for (SlaveInfo slave : slaveRegistry.values())
         {
-            // Calculate completion time for this slave
+            int loadSnapshot;
+
+            synchronized (slave)
+            {
+                loadSnapshot = slave.currentLoad;
+            }
+
             boolean isOptimal = String.valueOf(slave.slaveType).equals(jobType);
             int processingTime = isOptimal ? 2 : 10;
-            int completionTime = slave.currentLoad + processingTime;
+            int completionTime = loadSnapshot + processingTime;
 
             if (completionTime < minCompletionTime)
             {
@@ -483,10 +494,17 @@ public class Master
 
         if (bestSlave != null)
         {
+            int bestLoadSnapshot;
+            synchronized (bestSlave)
+            {
+                bestLoadSnapshot = bestSlave.currentLoad;
+            }
+
             boolean isOptimal = String.valueOf(bestSlave.slaveType).equals(jobType);
+
             System.out.println("Master: Selected slave " + bestSlave.slaveId +
                     " (Type " + bestSlave.slaveType + ") for job type " + jobType +
-                    " - current load: " + bestSlave.currentLoad +
+                    " - current load: " + bestLoadSnapshot +
                     " seconds, " + (isOptimal ? "optimal" : "non-optimal") +
                     " match, will complete in " + minCompletionTime + " seconds");
         }
@@ -494,21 +512,23 @@ public class Master
         return bestSlave;
     }
 
+
     private void assignJobToSlave(SlaveInfo slave, JobSubmission job)
     {
         boolean isOptimal = String.valueOf(slave.slaveType).equals(job.jobType);
         int processingTime = isOptimal ? 2 : 10;
 
-        // Update slave load and track the exact processing time for this job
-        slave.currentLoad += processingTime;
-        slave.activeJobs.put(job.jobId, processingTime);
+        String jobMessage = "JOB;" + job.jobType + ";" + job.jobId;
+
+        synchronized (slave)
+        {
+            slave.currentLoad += processingTime;
+            slave.activeJobs.put(job.jobId, processingTime);
+            slave.out.println(jobMessage);
+        }
 
         System.out.println("Master: Updated slave " + slave.slaveId + " load: +" +
                 processingTime + " seconds, new total load: " + slave.currentLoad + " seconds");
-
-        // Send job to slave: JOB;type;jobId
-        String jobMessage = "JOB;" + job.jobType + ";" + job.jobId;
-        slave.out.println(jobMessage);
 
         System.out.println("Master: Assigned job " + job.jobId + " to slave " +
                 slave.slaveId + " (Type " + slave.slaveType + ", " +
@@ -559,9 +579,12 @@ public class Master
 
         if (client != null)
         {
-            // Send completion message: DONE;clientId;jobId
             String completionMessage = "DONE;" + clientId + ";" + jobId;
-            client.out.println(completionMessage);
+
+            synchronized (client)
+            {
+                client.out.println(completionMessage);
+            }
 
             System.out.println("Master: Notified client " + clientId +
                     " that job " + jobId + " is complete");

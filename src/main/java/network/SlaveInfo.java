@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SlaveInfo
 {
@@ -14,5 +15,5 @@ public class SlaveInfo
     public PrintWriter out;
     public BufferedReader in;
 
-    public HashMap<String, Integer> activeJobs = new HashMap<>();
+    public ConcurrentHashMap<String, Integer> activeJobs = new ConcurrentHashMap<>();
 }

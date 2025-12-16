@@ -183,7 +183,7 @@ public class Client
 
                     // Send to master
                     out.println(msg);
-                    System.out.println("Client [" + clientId + "]: Submitted to master: " + msg);
+                    System.out.println("\nClient [" + clientId + "]: Submitted to master: " + msg);
                 }
             }
             catch (Exception e)
