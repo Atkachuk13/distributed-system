@@ -256,7 +256,7 @@ public class Client
 
                             if (doneClientId.equals(clientId))
                             {
-                                System.out.println("Client [" + clientId + "]: ✓ Job " + jobId +
+                                System.out.println("Client [" + clientId + "]: Completed Job " + jobId +
                                         " has been COMPLETED!");
                             } else
                             {
