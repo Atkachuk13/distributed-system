@@ -1,3 +1,8 @@
+/*
+ * WE DID THE EXTRA CREDIT IMPLEMENTATION
+ * This system supports dynamic slaves and clients joining at any time.
+ */
+
 package network;
 
 import java.io.*;
@@ -535,7 +540,11 @@ public class Master
                     }
                     else
                     {
-                        System.err.println("Master: No slaves available for job " + job.jobId);
+                        System.err.println("Master: No slaves available for job " + job.jobId +
+                                ". Re-queuing for later assignment.");
+
+                        Thread.sleep(1000);
+                        jobSubmissionQueue.put(job); // Put it back in the queue
                     }
                 }
             }
@@ -549,6 +558,12 @@ public class Master
 
     private SlaveInfo selectOptimalSlave(String jobType)
     {
+        if (slaveRegistry.isEmpty())
+        {
+            System.err.println("Master: No slaves available! Job will wait for slaves to connect.");
+            return null;
+        }
+
         SlaveInfo bestSlave = null;
         int minCompletionTime = Integer.MAX_VALUE;
 
