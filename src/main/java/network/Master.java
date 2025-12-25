@@ -399,6 +399,8 @@ public class Master
                                         " already submitted by client " + existing +
                                         " — rejecting new submission from " + clientId
                         );
+
+                        notifyClientError(clientId, "DUPLICATE_JOB_ID", jobId);
                         return;
                     }
 
@@ -464,7 +466,11 @@ public class Master
                     }
                     else
                     {
-                        System.err.println("Master: No slaves available for job " + job.jobId);
+                        System.err.println(
+                                "Master: No slaves available for job " + job.jobId + " — re-queuing"
+                        );
+                        jobSubmissionQueue.put(job);
+                        Thread.sleep(200); // small delay to avoid busy loop
                     }
                 }
             }
@@ -603,6 +609,25 @@ public class Master
             System.err.println("Master: Client " + clientId +
                     " not found for job completion notification");
         }
+    }
+
+    private void notifyClientError(String clientId, String errorCode, String jobId)
+    {
+        ClientInfo client = clientRegistry.get(clientId);
+        if (client == null)
+        {
+            System.err.println("Master: Cannot send error to client " + clientId + " (not registered)");
+            return;
+        }
+
+        String msg = "ERROR;" + errorCode + ";" + jobId;
+
+        synchronized (client)
+        {
+            client.out.println(msg);
+        }
+
+        System.out.println("Master: Sent error to client " + clientId + ": " + msg);
     }
 
     public static void main(String[] args)
