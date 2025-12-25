@@ -390,8 +390,17 @@ public class Master
                     System.out.println("Master: Received job " + jobId + " (Type " + jobType +
                             ") from client " + clientId);
 
-                    // Track which client submitted this job
-                    jobToClientMapping.put(jobId, clientId);
+                    // Track which client submitted this job (reject duplicates)
+                    String existing = jobToClientMapping.putIfAbsent(jobId, clientId);
+                    if (existing != null)
+                    {
+                        System.err.println(
+                                "Master: Duplicate job ID " + jobId +
+                                        " already submitted by client " + existing +
+                                        " — rejecting new submission from " + clientId
+                        );
+                        return;
+                    }
 
                     // Create JobSubmission and add to queue
                     JobSubmission submission = new JobSubmission();
