@@ -11,27 +11,15 @@ public class Client
     private final String host;
     private final int port;
     private Socket socketToMaster;
-
-    // Unique ID for this client instance
     private String clientId;
-
-    // Shared memory for outgoing messages (thread-safe queue)
+    // shared memory for outgoing messages
     private final BlockingQueue<String> outgoingQueue = new LinkedBlockingQueue<>();
-
-    // Single lock for ALL console output (prevents prompt/output interleaving)
     private final Object consoleLock = new Object();
 
-    // Constructor with configurable host and port
     public Client(String host, int port)
     {
         this.host = host;
         this.port = port;
-    }
-
-    // Default constructor for backward compatibility
-    public Client()
-    {
-        this("localhost", 6000); // Default to client port
     }
 
     public static void main(String[] args)
@@ -79,10 +67,10 @@ public class Client
                 System.out.println();
             }
 
-            // Start threads for:
-            //  1) user input
-            //  2) sending messages to master
-            //  3) listening for messages from master
+            // start threads for:
+            //  - user input
+            //  - sending messages to master
+            //  - listening for messages from master
             startUserInputThread();
             startSenderThread();
             startListenerThread();
@@ -133,12 +121,11 @@ public class Client
                 System.out.println();
             }
 
-            // Main loop: read jobs from the user with proper validation
+            // main loop: read jobs from the user with proper validation
             while (true)
             {
                 try
                 {
-                    // Get and validate job type
                     String type = "";
                     while (!type.equals("A") && !type.equals("B"))
                     {
@@ -157,7 +144,6 @@ public class Client
                         }
                     }
 
-                    // Get and validate job ID
                     String id = "";
                     while (id.isEmpty())
                     {
@@ -176,14 +162,13 @@ public class Client
                         }
                     }
 
-                    // Message format: SUBMIT;clientId;type;jobId
+                    // message format: SUBMIT;clientId;type;jobId
                     String msg = "SUBMIT;" + clientId + ";" + type + ";" + id;
 
-                    // Put message into shared queue for the sender thread
                     outgoingQueue.add(msg);
 
                     System.out.println("Client [" + clientId + "]: Queued job " + id + " (type " + type + ")");
-                    System.out.println(); // Add blank line for readability
+                    System.out.println();
 
                 } catch (Exception e)
                 {
@@ -195,7 +180,7 @@ public class Client
             }
         }, "UserInputThread");
 
-        t.setDaemon(false); // Keep JVM running
+        t.setDaemon(false);
         t.start();
     }
 
@@ -213,10 +198,8 @@ public class Client
 
                 while (true)
                 {
-                    // Take next message from queue (blocks until available)
                     String msg = outgoingQueue.take();
 
-                    // Send to master
                     out.println(msg);
 
                     synchronized (consoleLock)
@@ -234,7 +217,7 @@ public class Client
             }
         }, "SenderThread");
 
-        t.setDaemon(true); // Don't prevent JVM shutdown
+        t.setDaemon(true);
         t.start();
     }
 
@@ -262,7 +245,7 @@ public class Client
                         System.out.println("Client [" + clientId + "]: Received from master: " + line);
                     }
 
-                    // Example expected format: DONE;clientId;jobId
+                    // format: DONE;clientId;jobId
                     if (line.startsWith("DONE;"))
                     {
                         String[] parts = line.split(";");
@@ -271,14 +254,12 @@ public class Client
                             String doneClientId = parts[1];
                             String jobId = parts[2];
 
-                            // Only announce completion if this message is for THIS client
                             if (doneClientId.equals(clientId))
                             {
                                 System.out.println("Client [" + clientId + "]: ✓ Job " + jobId +
                                         " has been COMPLETED!");
                             } else
                             {
-                                // This shouldn't normally happen with separate client connections
                                 synchronized (consoleLock)
                                 {
                                     System.out.println("Client [" + clientId + "]: (Note: Received completion " +
@@ -303,7 +284,7 @@ public class Client
 
         t.
 
-                setDaemon(true); // Don't prevent JVM shutdown
+                setDaemon(true);
         t.
 
                 start();

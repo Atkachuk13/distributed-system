@@ -15,13 +15,10 @@ public class Master
     int clientPort;
     int slavePort;
 
-    // Thread pool for managing concurrent connections
+    // thread pool for managing concurrent connections
     private final ExecutorService threadPool;
 
-    // Shared object for slave registry (thread-safe access)
     private final ConcurrentHashMap<String, SlaveInfo> slaveRegistry;
-
-    // Shared object for completed jobs queue
     private final BlockingQueue<JobCompletion> completedJobsQueue;
 
     private final ConcurrentHashMap<String, ClientInfo> clientRegistry;
@@ -98,7 +95,6 @@ public class Master
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(slaveSocket.getInputStream()));
 
-            // Read first message to get slave type
             String firstMessage = in.readLine();
 
             if (firstMessage == null)
@@ -142,7 +138,6 @@ public class Master
                     new InputStreamReader(clientSocket.getInputStream()));
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            // Read first message to get client ID
             String firstMessage = in.readLine();
 
             if (firstMessage == null)
@@ -156,7 +151,7 @@ public class Master
 
             if (firstMessage.startsWith("SUBMIT;"))
             {
-                // Extract clientId from first message: SUBMIT;clientId;type;jobId
+                // extract clientId from first message: SUBMIT;clientId;type;jobId
                 String[] parts = firstMessage.split(";");
                 if (parts.length < 4)
                 {
@@ -169,22 +164,20 @@ public class Master
 
                 System.out.println("Master: Registering client - ID: " + clientId);
 
-                // Create ClientInfo object
                 ClientInfo clientInfo = new ClientInfo();
                 clientInfo.clientId = clientId;
                 clientInfo.socketToClient = clientSocket;
                 clientInfo.out = out;
                 clientInfo.in = in;
 
-                // Add to registry
                 clientRegistry.put(clientId, clientInfo);
 
                 System.out.println("Master: Client " + clientId + " successfully registered");
 
-                // Process the first job submission
+                // first job submission
                 processClientMessage(firstMessage, clientId);
 
-                // Continue reading messages from this client
+                // continue reading messages from this client
                 readFromClient(clientId, clientInfo);
             } else
             {
@@ -208,7 +201,7 @@ public class Master
 
             System.out.println("Master: Registering slave - ID: " + slaveId + ", Type: " + slaveType);
 
-            // Validate slave type
+            // validate slave type
             if (!slaveType.equals("A") && !slaveType.equals("B"))
             {
                 System.err.println("Master: Invalid slave type: " + slaveType);
@@ -216,7 +209,7 @@ public class Master
                 return;
             }
 
-            // Create SlaveInfo object
+            // create SlaveInfo object
             SlaveInfo slaveInfo = new SlaveInfo();
             slaveInfo.slaveId = slaveId;
             slaveInfo.slaveType = slaveType.charAt(0);
@@ -225,12 +218,11 @@ public class Master
             slaveInfo.out = out;
             slaveInfo.in = in;
 
-            // Add to registry (ConcurrentHashMap, no synchronization needed)
             slaveRegistry.put(slaveId, slaveInfo);
 
             System.out.println("Master: Slave " + slaveId + " successfully registered");
 
-            // Start reader thread
+            // start reader thread
             threadPool.execute(() -> readFromSlave(slaveId, slaveInfo));
 
         } catch (IOException e)
@@ -261,7 +253,7 @@ public class Master
 
                         System.out.println("Master: Job " + jobIdStr + " completed by slave " + slaveId);
 
-                        // Update slave load using exact job time that was tracked
+                        // update slave load
                         Integer processingTime;
                         synchronized (slaveInfo)
                         {
@@ -286,7 +278,6 @@ public class Master
                                     " completed but no processing time was tracked");
                         }
 
-                        // Add to completion queue
                         JobCompletion completion = new JobCompletion(jobIdStr, slaveId);
                         completedJobsQueue.put(completion);
                     }
@@ -306,16 +297,15 @@ public class Master
 
     private void handleSlaveDisconnection(String slaveId)
     {
-        // Remove slave from registry
+        // remove slave from registry
         SlaveInfo removed = slaveRegistry.remove(slaveId);
         if (removed != null)
         {
             System.out.println("Master: Removed slave " + slaveId + " from registry");
 
-            // Handle job reassignment before closing the socket
+            // handle job reassignment before closing the socket
             reassignJobsFromDisconnectedSlave(removed);
 
-            // Close socket
             try
             {
                 removed.socketToSlave.close();
@@ -328,7 +318,7 @@ public class Master
 
     private void reassignJobsFromDisconnectedSlave(SlaveInfo disconnectedSlave)
     {
-        // Get all active jobs that were assigned to this slave
+        // get all active jobs that were assigned to this slave
         ConcurrentHashMap<String, Integer> activeJobs = disconnectedSlave.activeJobs;
 
         if (activeJobs.isEmpty())
@@ -341,10 +331,10 @@ public class Master
         System.out.println("Master: Reassigning " + activeJobs.size() +
                 " jobs from disconnected slave " + disconnectedSlave.slaveId);
 
-        // Iterate through all jobs that were on this slave
+        // iterate through all jobs that were on this slave
         for (String jobId : activeJobs.keySet())
         {
-            // Find the client who submitted this job
+            // find the client who submitted this job
             String clientId = jobToClientMapping.get(jobId);
 
             if (clientId != null)
@@ -352,52 +342,45 @@ public class Master
                 System.out.println("Master: Reassigning job " + jobId +
                         " (originally from client " + clientId + ")");
 
-                // We need to know the job type to reassign it
-                // We can infer it from the processing time stored in activeJobs
                 Integer processingTime = activeJobs.get(jobId);
                 String jobType;
 
-                // Infer job type from processing time
                 // 2 seconds = optimal match, 10 seconds = non-optimal match
                 if (processingTime == 2)
                 {
-                    // This was an optimal match, so job type matches slave type
+                    // optimal match
                     jobType = String.valueOf(disconnectedSlave.slaveType);
-                }
-                else if (processingTime == 10)
+                } else if (processingTime == 10)
                 {
-                    // This was non-optimal, so job type is the opposite
+                    // non-optimal
                     jobType = disconnectedSlave.slaveType == 'A' ? "B" : "A";
-                }
-                else
+                } else
                 {
-                    // Unknown processing time, default to trying both
+                    // unknown processing time, default to trying both
                     System.err.println("Master: WARNING - Unknown processing time " +
                             processingTime + " for job " + jobId + ", defaulting to type A");
                     jobType = "A";
                 }
 
-                // Create a new JobSubmission for reassignment
+                // new JobSubmission for reassignment
                 JobSubmission reassignment = new JobSubmission();
                 reassignment.clientId = clientId;
                 reassignment.jobType = jobType;
                 reassignment.jobId = jobId;
 
-                // Add back to the job queue for reassignment
+                // add back to the job queue for reassignment
                 try
                 {
                     jobSubmissionQueue.put(reassignment);
                     System.out.println("Master: Job " + jobId + " (Type " + jobType +
                             ") queued for reassignment");
-                }
-                catch (InterruptedException e)
+                } catch (InterruptedException e)
                 {
                     System.err.println("Master: Failed to reassign job " + jobId);
                     e.printStackTrace();
                     Thread.currentThread().interrupt();
                 }
-            }
-            else
+            } else
             {
                 System.err.println("Master: WARNING - Cannot reassign job " + jobId +
                         ": client mapping not found");
@@ -439,21 +422,21 @@ public class Master
         {
             if (message.startsWith("SUBMIT;"))
             {
-                // Format: SUBMIT;clientId;type;jobId
+                // format: SUBMIT;clientId;type;jobId
                 String[] parts = message.split(";");
                 if (parts.length >= 4)
                 {
                     String jobType = parts[2];
                     String jobId = parts[3];
 
-                    // Validate job type
+                    // validate job type
                     if (jobType.isEmpty() || (!jobType.equals("A") && !jobType.equals("B")))
                     {
                         System.err.println("Master: Invalid job type '" + jobType + "' from client " + clientId);
                         return;
                     }
 
-                    // Validate job ID
+                    // validate job ID
                     if (jobId.isEmpty())
                     {
                         System.err.println("Master: Empty job ID from client " + clientId);
@@ -463,7 +446,7 @@ public class Master
                     System.out.println("Master: Received job " + jobId + " (Type " + jobType +
                             ") from client " + clientId);
 
-                    // Track which client submitted this job (reject duplicates)
+                    // track which client submitted this job
                     String existing = jobToClientMapping.putIfAbsent(jobId, clientId);
                     if (existing != null)
                     {
@@ -477,7 +460,6 @@ public class Master
                         return;
                     }
 
-                    // Create JobSubmission and add to queue
                     JobSubmission submission = new JobSubmission();
                     submission.clientId = clientId;
                     submission.jobType = jobType;
@@ -522,13 +504,13 @@ public class Master
 
                 while (true)
                 {
-                    // Take job from queue (blocks until available)
+                    // take job from queue (blocks until available)
                     JobSubmission job = jobSubmissionQueue.take();
 
                     System.out.println("Master: Processing job " + job.jobId +
                             " (Type " + job.jobType + ") from client " + job.clientId);
 
-                    // Select optimal slave based on load and job type
+                    // select optimal slave based on load and job type
                     SlaveInfo selectedSlave = selectOptimalSlave(job.jobType);
 
                     if (selectedSlave != null)
@@ -635,13 +617,13 @@ public class Master
 
                 while (true)
                 {
-                    // Take completion from queue
+                    // take completion from queue
                     JobCompletion completion = completedJobsQueue.take();
 
                     System.out.println("Master: Processing completion notification for job " +
                             completion.jobId);
 
-                    // Find which client submitted this job
+                    // find which client submitted this job
                     String clientId = jobToClientMapping.remove(completion.jobId);
 
                     if (clientId != null)
@@ -704,15 +686,16 @@ public class Master
 
     public static void main(String[] args)
     {
-        // Create master with separate ports for clients and slaves
-        // Clients connect on port 6000, slaves connect on port 6001
+        // master with separate ports for clients and slaves
+        // clients connect on port 6000
+        // slaves connect on port 6001
         Master master = new Master(6000, 6001);
 
-        // Start background threads
+        // background threads
         master.startJobAssignmentThread();
         master.startCompletionNotificationThread();
 
-        // Start accepting connections (separate ports for clients and slaves)
+        // accepting connections
         master.acceptConnections();
     }
 }
