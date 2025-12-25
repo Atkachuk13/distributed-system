@@ -475,7 +475,7 @@ public class Master
                     System.out.println("Master: Received job " + jobId + " (Type " + jobType +
                             ") from client " + clientId);
 
-                    // Track which client submitted this job (reject duplicates)
+                    // Track which client submitted this job
                     String existing = jobToClientMapping.putIfAbsent(jobId, clientId);
                     if (existing != null)
                     {
