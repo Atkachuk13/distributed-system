@@ -66,8 +66,7 @@ public class Master
                 System.out.println("Master: New connection on slave port from " + s.getInetAddress());
                 threadPool.execute(() -> handleSlaveConnection(s));
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Master: Error accepting slave connections");
             e.printStackTrace();
@@ -85,8 +84,7 @@ public class Master
                 System.out.println("Master: New connection on client port from " + s.getInetAddress());
                 threadPool.execute(() -> handleClientConnection(s));
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Master: Error accepting client connections");
             e.printStackTrace();
@@ -119,20 +117,17 @@ public class Master
                 {
                     String slaveType = parts[1];
                     registerSlave(slaveSocket, slaveType, in);
-                }
-                else
+                } else
                 {
                     System.err.println("Master: Invalid slave identification format");
                     slaveSocket.close();
                 }
-            }
-            else
+            } else
             {
                 System.err.println("Master: Expected SLAVE message, got: " + firstMessage);
                 slaveSocket.close();
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Master: Error handling slave connection - " + e.getMessage());
             e.printStackTrace();
@@ -191,14 +186,12 @@ public class Master
 
                 // Continue reading messages from this client
                 readFromClient(clientId, clientInfo);
-            }
-            else
+            } else
             {
                 System.err.println("Master: Expected SUBMIT message from client, got: " + firstMessage);
                 clientSocket.close();
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Master: Error handling client connection - " + e.getMessage());
             e.printStackTrace();
@@ -240,8 +233,7 @@ public class Master
             // Start reader thread
             threadPool.execute(() -> readFromSlave(slaveId, slaveInfo));
 
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Master: Error during slave registration - " + e.getMessage());
             e.printStackTrace();
@@ -288,8 +280,7 @@ public class Master
                         {
                             System.out.println("Master: Slave " + slaveId + " load decreased by " +
                                     processingTime + " seconds, current load: " + slaveInfo.currentLoad);
-                        }
-                        else
+                        } else
                         {
                             System.err.println("Master: WARNING - Job " + jobIdStr +
                                     " completed but no processing time was tracked");
@@ -305,8 +296,7 @@ public class Master
             System.err.println("Master: Slave " + slaveId + " disconnected");
             handleSlaveDisconnection(slaveId);
 
-        }
-        catch (IOException | InterruptedException e)
+        } catch (IOException | InterruptedException e)
         {
             System.err.println("Master: Error reading from slave " + slaveId);
             e.printStackTrace();
@@ -329,8 +319,7 @@ public class Master
             try
             {
                 removed.socketToSlave.close();
-            }
-            catch (IOException e)
+            } catch (IOException e)
             {
                 e.printStackTrace();
             }
@@ -436,8 +425,7 @@ public class Master
             System.err.println("Master: Client " + clientId + " disconnected");
             handleClientDisconnection(clientId);
 
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Master: Error reading from client " + clientId);
             e.printStackTrace();
@@ -498,8 +486,7 @@ public class Master
                     System.out.println("Master: Job " + jobId + " added to assignment queue");
                 }
             }
-        }
-        catch (InterruptedException e)
+        } catch (InterruptedException e)
         {
             System.err.println("Master: Error queuing job from client " + clientId);
             e.printStackTrace();
@@ -516,8 +503,7 @@ public class Master
             try
             {
                 removed.socketToClient.close();
-            }
-            catch (IOException e)
+            } catch (IOException e)
             {
                 e.printStackTrace();
             }
@@ -546,8 +532,7 @@ public class Master
                     if (selectedSlave != null)
                     {
                         assignJobToSlave(selectedSlave, job);
-                    }
-                    else
+                    } else
                     {
                         System.err.println("Master: No slaves available for job " + job.jobId +
                                 ". Re-queuing for later assignment.");
@@ -556,8 +541,7 @@ public class Master
                         jobSubmissionQueue.put(job); // Put it back in the queue
                     }
                 }
-            }
-            catch (InterruptedException e)
+            } catch (InterruptedException e)
             {
                 System.err.println("Master: Job assignment thread interrupted");
                 Thread.currentThread().interrupt();
@@ -661,15 +645,13 @@ public class Master
                     if (clientId != null)
                     {
                         notifyClientOfCompletion(clientId, completion.jobId);
-                    }
-                    else
+                    } else
                     {
                         System.err.println("Master: No client found for completed job " +
                                 completion.jobId);
                     }
                 }
-            }
-            catch (InterruptedException e)
+            } catch (InterruptedException e)
             {
                 System.err.println("Master: Completion notification thread interrupted");
                 Thread.currentThread().interrupt();
@@ -692,8 +674,7 @@ public class Master
 
             System.out.println("Master: Notified client " + clientId +
                     " that job " + jobId + " is complete");
-        }
-        else
+        } else
         {
             System.err.println("Master: Client " + clientId +
                     " not found for job completion notification");

@@ -88,18 +88,15 @@ public class Slave
                 // load tracking (currentLoad) remains accurate
                 processJob(job);
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Slave-" + slaveType + ": Connection error - " + e.getMessage());
             e.printStackTrace();
-        }
-        catch (InterruptedException e)
+        } catch (InterruptedException e)
         {
             System.err.println("Slave-" + slaveType + ": Interrupted while waiting for job");
             e.printStackTrace();
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             System.err.println("Slave-" + slaveType + ": Unexpected error");
             e.printStackTrace();
@@ -138,8 +135,7 @@ public class Slave
                         // 4. Print a message confirming the job was received
                         System.out.println("Slave-" + slaveType + ": Job " + jobId +
                                 " (Type " + jobType + ") received and queued");
-                    }
-                    else
+                    } else
                     {
                         System.err.println("Slave-" + slaveType + ": Malformed job message: " + line);
                     }
@@ -148,13 +144,11 @@ public class Slave
 
             System.out.println("Slave-" + slaveType + ": Connection to master closed");
 
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.println("Slave-" + slaveType + ": Error reading from master - " + e.getMessage());
             e.printStackTrace();
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             System.err.println("Slave-" + slaveType + ": Unexpected error in listener thread");
             e.printStackTrace();
@@ -179,8 +173,7 @@ public class Slave
                 System.out.println("Slave-" + slaveType + ": Processing optimal job " + job.jobId +
                         " (2 seconds)");
                 Thread.sleep(2000);
-            }
-            else
+            } else
             {
                 // Non-optimal job: sleep for 10 seconds
                 System.out.println("Slave-" + slaveType + ": Processing non-optimal job " + job.jobId +
@@ -196,13 +189,11 @@ public class Slave
             System.out.println("Slave-" + slaveType + ": Job " + job.jobId +
                     " completed and notified master");
 
-        }
-        catch (InterruptedException e)
+        } catch (InterruptedException e)
         {
             System.err.println("Slave-" + slaveType + ": Job " + job.jobId + " was interrupted");
             e.printStackTrace();
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             System.err.println("Slave-" + slaveType + ": Error processing job " + job.jobId);
             e.printStackTrace();
