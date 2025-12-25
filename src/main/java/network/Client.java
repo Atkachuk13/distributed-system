@@ -47,8 +47,7 @@ public class Client
             try
             {
                 port = Integer.parseInt(args[1]);
-            }
-            catch (NumberFormatException e)
+            } catch (NumberFormatException e)
             {
                 System.err.println("Invalid port number: " + args[1]);
                 System.err.println("Usage: java Client [host] [port]");
@@ -77,8 +76,7 @@ public class Client
             startSenderThread();
             startListenerThread();
 
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             System.err.println("Error starting client:");
             e.printStackTrace();
@@ -105,8 +103,7 @@ public class Client
             {
                 clientId = "client-" + System.currentTimeMillis();
                 System.out.println("No ID entered. Using generated ID: " + clientId);
-            }
-            else
+            } else
             {
                 System.out.println("Client ID set to: " + clientId);
             }
@@ -152,8 +149,7 @@ public class Client
                     System.out.println("Client [" + clientId + "]: Queued job " + id + " (type " + type + ")");
                     System.out.println(); // Add blank line for readability
 
-                }
-                catch (Exception e)
+                } catch (Exception e)
                 {
                     System.err.println("Error reading input: " + e.getMessage());
                 }
@@ -185,8 +181,7 @@ public class Client
                     out.println(msg);
                     System.out.println("\nClient [" + clientId + "]: Submitted to master: " + msg);
                 }
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 System.err.println("Sender thread encountered an error:");
                 e.printStackTrace();
@@ -233,8 +228,7 @@ public class Client
                             {
                                 System.out.println("Client [" + clientId + "]: ✓ Job " + jobId +
                                         " has been COMPLETED!");
-                            }
-                            else
+                            } else
                             {
                                 // This shouldn't normally happen with separate client connections
                                 System.out.println("Client [" + clientId + "]: (Note: Received completion " +
@@ -246,8 +240,7 @@ public class Client
 
                 System.err.println("Client [" + clientId + "]: Connection to master closed");
 
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 System.err.println("Listener thread encountered an error:");
                 e.printStackTrace();
