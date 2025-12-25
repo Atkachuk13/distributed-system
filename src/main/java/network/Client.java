@@ -52,11 +52,8 @@ public class Client
                 port = Integer.parseInt(args[1]);
             } catch (NumberFormatException e)
             {
-                synchronized (System.out)
-                {
-                    System.err.println("Invalid port number: " + args[1]);
-                    System.err.println("Usage: java Client [host] [port]");
-                }
+                System.err.println("Invalid port number: " + args[1]);
+                System.err.println("Usage: java Client [host] [port]");
                 return;
             }
         }
