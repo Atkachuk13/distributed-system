@@ -1,3 +1,8 @@
+/*
+ * WE DID THE EXTRA CREDIT IMPLEMENTATION
+ * This system supports dynamic slaves and clients joining at any time.
+ */
+
 package network;
 
 import java.io.*;
@@ -307,6 +312,9 @@ public class Master
         {
             System.out.println("Master: Removed slave " + slaveId + " from registry");
 
+            // Handle job reassignment before closing the socket
+            reassignJobsFromDisconnectedSlave(removed);
+
             // Close socket
             try
             {
@@ -316,11 +324,88 @@ public class Master
                 e.printStackTrace();
             }
         }
+    }
 
-        // TODO: Handle any jobs that were assigned to this slave
-        // For now, just log the issue
-        System.err.println("Master: WARNING - Jobs assigned to slave " + slaveId +
-                " may need to be reassigned");
+    private void reassignJobsFromDisconnectedSlave(SlaveInfo disconnectedSlave)
+    {
+        // Get all active jobs that were assigned to this slave
+        ConcurrentHashMap<String, Integer> activeJobs = disconnectedSlave.activeJobs;
+
+        if (activeJobs.isEmpty())
+        {
+            System.out.println("Master: No active jobs to reassign from slave " +
+                    disconnectedSlave.slaveId);
+            return;
+        }
+
+        System.out.println("Master: Reassigning " + activeJobs.size() +
+                " jobs from disconnected slave " + disconnectedSlave.slaveId);
+
+        // Iterate through all jobs that were on this slave
+        for (String jobId : activeJobs.keySet())
+        {
+            // Find the client who submitted this job
+            String clientId = jobToClientMapping.get(jobId);
+
+            if (clientId != null)
+            {
+                System.out.println("Master: Reassigning job " + jobId +
+                        " (originally from client " + clientId + ")");
+
+                // We need to know the job type to reassign it
+                // We can infer it from the processing time stored in activeJobs
+                Integer processingTime = activeJobs.get(jobId);
+                String jobType;
+
+                // Infer job type from processing time
+                // 2 seconds = optimal match, 10 seconds = non-optimal match
+                if (processingTime == 2)
+                {
+                    // This was an optimal match, so job type matches slave type
+                    jobType = String.valueOf(disconnectedSlave.slaveType);
+                }
+                else if (processingTime == 10)
+                {
+                    // This was non-optimal, so job type is the opposite
+                    jobType = disconnectedSlave.slaveType == 'A' ? "B" : "A";
+                }
+                else
+                {
+                    // Unknown processing time, default to trying both
+                    System.err.println("Master: WARNING - Unknown processing time " +
+                            processingTime + " for job " + jobId + ", defaulting to type A");
+                    jobType = "A";
+                }
+
+                // Create a new JobSubmission for reassignment
+                JobSubmission reassignment = new JobSubmission();
+                reassignment.clientId = clientId;
+                reassignment.jobType = jobType;
+                reassignment.jobId = jobId;
+
+                // Add back to the job queue for reassignment
+                try
+                {
+                    jobSubmissionQueue.put(reassignment);
+                    System.out.println("Master: Job " + jobId + " (Type " + jobType +
+                            ") queued for reassignment");
+                }
+                catch (InterruptedException e)
+                {
+                    System.err.println("Master: Failed to reassign job " + jobId);
+                    e.printStackTrace();
+                    Thread.currentThread().interrupt();
+                }
+            }
+            else
+            {
+                System.err.println("Master: WARNING - Cannot reassign job " + jobId +
+                        ": client mapping not found");
+            }
+        }
+
+        System.out.println("Master: Finished reassigning jobs from slave " +
+                disconnectedSlave.slaveId);
     }
 
     private void readFromClient(String clientId, ClientInfo clientInfo)
@@ -379,7 +464,16 @@ public class Master
                             ") from client " + clientId);
 
                     // Track which client submitted this job
-                    jobToClientMapping.put(jobId, clientId);
+                    String existing = jobToClientMapping.putIfAbsent(jobId, clientId);
+                    if (existing != null)
+                    {
+                        System.err.println(
+                                "Master: Duplicate job ID " + jobId +
+                                        " already submitted by client " + existing +
+                                        " — rejecting new submission from " + clientId
+                        );
+                        return;
+                    }
 
                     // Create JobSubmission and add to queue
                     JobSubmission submission = new JobSubmission();
@@ -440,7 +534,11 @@ public class Master
                         assignJobToSlave(selectedSlave, job);
                     } else
                     {
-                        System.err.println("Master: No slaves available for job " + job.jobId);
+                        System.err.println("Master: No slaves available for job " + job.jobId +
+                                ". Re-queuing for later assignment.");
+
+                        Thread.sleep(1000);
+                        jobSubmissionQueue.put(job); // Put it back in the queue
                     }
                 }
             } catch (InterruptedException e)
@@ -453,6 +551,12 @@ public class Master
 
     private SlaveInfo selectOptimalSlave(String jobType)
     {
+        if (slaveRegistry.isEmpty())
+        {
+            System.err.println("Master: No slaves available! Job will wait for slaves to connect.");
+            return null;
+        }
+
         SlaveInfo bestSlave = null;
         int minCompletionTime = Integer.MAX_VALUE;
 

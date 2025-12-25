@@ -18,6 +18,9 @@ public class Client
     // Shared memory for outgoing messages (thread-safe queue)
     private final BlockingQueue<String> outgoingQueue = new LinkedBlockingQueue<>();
 
+    // Single lock for ALL console output (prevents prompt/output interleaving)
+    private final Object consoleLock = new Object();
+
     // Constructor with configurable host and port
     public Client(String host, int port)
     {
@@ -49,8 +52,11 @@ public class Client
                 port = Integer.parseInt(args[1]);
             } catch (NumberFormatException e)
             {
-                System.err.println("Invalid port number: " + args[1]);
-                System.err.println("Usage: java Client [host] [port]");
+                synchronized (System.out)
+                {
+                    System.err.println("Invalid port number: " + args[1]);
+                    System.err.println("Usage: java Client [host] [port]");
+                }
                 return;
             }
         }
@@ -62,11 +68,19 @@ public class Client
     {
         try
         {
-            System.out.println("Client starting...");
-            System.out.println("Connecting to master at " + host + ":" + port);
+            synchronized (consoleLock)
+            {
+                System.out.println("Client starting...");
+                System.out.println("Connecting to master at " + host + ":" + port);
+            }
+
             socketToMaster = new Socket(host, port);
-            System.out.println("Successfully connected to master!");
-            System.out.println();
+
+            synchronized (consoleLock)
+            {
+                System.out.println("Successfully connected to master!");
+                System.out.println();
+            }
 
             // Start threads for:
             //  1) user input
@@ -78,8 +92,11 @@ public class Client
 
         } catch (Exception e)
         {
-            System.err.println("Error starting client:");
-            e.printStackTrace();
+            synchronized (consoleLock)
+            {
+                System.err.println("Error starting client:");
+                e.printStackTrace();
+            }
         }
     }
 
@@ -95,19 +112,29 @@ public class Client
         {
             Scanner scanner = new Scanner(System.in);
 
-            // Ask once for a client ID so the master can distinguish clients
-            System.out.print("Enter your client ID (e.g., client1, client2): ");
+            synchronized (consoleLock)
+            {
+                System.out.print("Enter your client ID (e.g., client1, client2): ");
+            }
             clientId = scanner.nextLine().trim();
 
             if (clientId.isEmpty())
             {
                 clientId = "client-" + System.currentTimeMillis();
+
                 System.out.println("No ID entered. Using generated ID: " + clientId);
             } else
             {
-                System.out.println("Client ID set to: " + clientId);
+                synchronized (consoleLock)
+                {
+                    System.out.println("Client ID set to: " + clientId);
+                }
             }
-            System.out.println();
+
+            synchronized (consoleLock)
+            {
+                System.out.println();
+            }
 
             // Main loop: read jobs from the user with proper validation
             while (true)
@@ -118,12 +145,18 @@ public class Client
                     String type = "";
                     while (!type.equals("A") && !type.equals("B"))
                     {
-                        System.out.print("Enter job type (A or B): ");
+                        synchronized (consoleLock)
+                        {
+                            System.out.print("Enter job type (A or B): ");
+                        }
                         type = scanner.nextLine().trim().toUpperCase();
 
                         if (!type.equals("A") && !type.equals("B"))
                         {
-                            System.out.println("Invalid job type. Please enter A or B.");
+                            synchronized (consoleLock)
+                            {
+                                System.out.println("Invalid job type. Please enter A or B.");
+                            }
                         }
                     }
 
@@ -131,12 +164,18 @@ public class Client
                     String id = "";
                     while (id.isEmpty())
                     {
-                        System.out.print("Enter job ID: ");
+                        synchronized (consoleLock)
+                        {
+                            System.out.print("Enter job ID: ");
+                        }
                         id = scanner.nextLine().trim();
 
                         if (id.isEmpty())
                         {
-                            System.out.println("Job ID cannot be empty. Please enter a valid job ID.");
+                            synchronized (consoleLock)
+                            {
+                                System.out.println("Job ID cannot be empty. Please enter a valid job ID.");
+                            }
                         }
                     }
 
@@ -151,7 +190,10 @@ public class Client
 
                 } catch (Exception e)
                 {
-                    System.err.println("Error reading input: " + e.getMessage());
+                    synchronized (consoleLock)
+                    {
+                        System.err.println("Error reading input: " + e.getMessage());
+                    }
                 }
             }
         }, "UserInputThread");
@@ -179,12 +221,19 @@ public class Client
 
                     // Send to master
                     out.println(msg);
-                    System.out.println("\nClient [" + clientId + "]: Submitted to master: " + msg);
+
+                    synchronized (consoleLock)
+                    {
+                        System.out.println("\nClient [" + clientId + "]: Submitted to master: " + msg);
+                    }
                 }
             } catch (Exception e)
             {
-                System.err.println("Sender thread encountered an error:");
-                e.printStackTrace();
+                synchronized (consoleLock)
+                {
+                    System.err.println("Sender thread encountered an error:");
+                    e.printStackTrace();
+                }
             }
         }, "SenderThread");
 
@@ -210,9 +259,11 @@ public class Client
 
                 while ((line = in.readLine()) != null)
                 {
-                    // Add a newline before listener output to avoid interrupting input prompts
-                    System.out.println("\n--- Master Response ---");
-                    System.out.println("Client [" + clientId + "]: Received from master: " + line);
+                    synchronized (consoleLock)
+                    {
+                        System.out.println("\n--- Master Response ---");
+                        System.out.println("Client [" + clientId + "]: Received from master: " + line);
+                    }
 
                     // Example expected format: DONE;clientId;jobId
                     if (line.startsWith("DONE;"))
@@ -231,8 +282,11 @@ public class Client
                             } else
                             {
                                 // This shouldn't normally happen with separate client connections
-                                System.out.println("Client [" + clientId + "]: (Note: Received completion " +
-                                        "for " + doneClientId + "'s job " + jobId + ")");
+                                synchronized (consoleLock)
+                                {
+                                    System.out.println("Client [" + clientId + "]: (Note: Received completion " +
+                                            "for " + doneClientId + "'s job " + jobId + ")");
+                                }
                             }
                         }
                     }
@@ -242,12 +296,19 @@ public class Client
 
             } catch (Exception e)
             {
-                System.err.println("Listener thread encountered an error:");
-                e.printStackTrace();
+                synchronized (consoleLock)
+                {
+                    System.err.println("Listener thread encountered an error:");
+                    e.printStackTrace();
+                }
             }
         }, "ListenerThread");
 
-        t.setDaemon(true); // Don't prevent JVM shutdown
-        t.start();
+        t.
+
+                setDaemon(true); // Don't prevent JVM shutdown
+        t.
+
+                start();
     }
 }
