@@ -50,8 +50,7 @@ public class Client
             try
             {
                 port = Integer.parseInt(args[1]);
-            }
-            catch (NumberFormatException e)
+            } catch (NumberFormatException e)
             {
                 System.err.println("Invalid port number: " + args[1]);
                 System.err.println("Usage: java Client [host] [port]");
@@ -88,8 +87,7 @@ public class Client
             startSenderThread();
             startListenerThread();
 
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             synchronized (consoleLock)
             {
@@ -120,12 +118,9 @@ public class Client
             if (clientId.isEmpty())
             {
                 clientId = "client-" + System.currentTimeMillis();
-                synchronized (consoleLock)
-                {
-                    System.out.println("No ID entered. Using generated ID: " + clientId);
-                }
-            }
-            else
+
+                System.out.println("No ID entered. Using generated ID: " + clientId);
+            } else
             {
                 synchronized (consoleLock)
                 {
@@ -187,13 +182,10 @@ public class Client
                     // Put message into shared queue for the sender thread
                     outgoingQueue.add(msg);
 
-                    synchronized (consoleLock)
-                    {
-                        System.out.println("Client [" + clientId + "]: Queued job " + id + " (type " + type + ")");
-                        System.out.println(); // Add blank line for readability
-                    }
-                }
-                catch (Exception e)
+                    System.out.println("Client [" + clientId + "]: Queued job " + id + " (type " + type + ")");
+                    System.out.println(); // Add blank line for readability
+
+                } catch (Exception e)
                 {
                     synchronized (consoleLock)
                     {
@@ -232,8 +224,7 @@ public class Client
                         System.out.println("\nClient [" + clientId + "]: Submitted to master: " + msg);
                     }
                 }
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 synchronized (consoleLock)
                 {
@@ -283,13 +274,9 @@ public class Client
                             // Only announce completion if this message is for THIS client
                             if (doneClientId.equals(clientId))
                             {
-                                synchronized (consoleLock)
-                                {
-                                    System.out.println("Client [" + clientId + "]: ✓ Job " + jobId +
-                                            " has been COMPLETED!");
-                                }
-                            }
-                            else
+                                System.out.println("Client [" + clientId + "]: ✓ Job " + jobId +
+                                        " has been COMPLETED!");
+                            } else
                             {
                                 // This shouldn't normally happen with separate client connections
                                 synchronized (consoleLock)
@@ -302,12 +289,9 @@ public class Client
                     }
                 }
 
-                synchronized (consoleLock)
-                {
-                    System.err.println("Client [" + clientId + "]: Connection to master closed");
-                }
-            }
-            catch (Exception e)
+                System.err.println("Client [" + clientId + "]: Connection to master closed");
+
+            } catch (Exception e)
             {
                 synchronized (consoleLock)
                 {
@@ -317,7 +301,11 @@ public class Client
             }
         }, "ListenerThread");
 
-        t.setDaemon(true); // Don't prevent JVM shutdown
-        t.start();
+        t.
+
+                setDaemon(true); // Don't prevent JVM shutdown
+        t.
+
+                start();
     }
 }
